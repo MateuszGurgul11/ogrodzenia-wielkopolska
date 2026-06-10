@@ -32,6 +32,16 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# Firebase service account (backend only)
+backend/serviceAccountKey.json
+**/serviceAccountKey.json
+
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
 
 # vercel
 .vercel

@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Konfigurator ogrodzeń betonowych — Wielkopolska
 
-## Getting Started
+Aplikacja webowa do konfiguracji ogrodzeń betonowych w 2D z panelem administracyjnym.
 
-First, run the development server:
+- **Frontend:** Next.js (konfigurator + panel admina)
+- **Backend:** FastAPI + Firebase Admin SDK (Firestore)
+- **Auth:** Firebase Authentication (e-mail/hasło) — token ID wysyłany do API
+
+## Funkcje
+
+- **Konfigurator** (`/`) — wybór elementów ogrodzenia z podglądem SVG na żywo
+- **Panel admina** (`/admin`) — CRUD wariantów przez REST API
+- **Tryb demo** — gdy API niedostępne, konfigurator używa danych przykładowych
+
+## Wymagania
+
+- Node.js 20+
+- Python 3.11+
+- Projekt [Firebase](https://console.firebase.google.com)
+
+## Konfiguracja
+
+### 1. Firebase
+
+1. Utwórz projekt w Firebase Console.
+2. **Authentication** → Sign-in method → **Email/Password**.
+3. **Authentication** → Users → dodaj konto admina.
+4. **Firestore Database** → utwórz bazę.
+5. Wgraj reguły z [`firestore.rules`](firestore.rules) (dostęp tylko przez service account).
+6. **Project settings** → Service accounts → **Generate new private key** → zapisz jako `backend/serviceAccountKey.json`.
+7. **Project settings** → Web app → skopiuj config do `.env`.
+
+### 2. Zmienne środowiskowe
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Uzupełnij `.env` (frontend):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Backend (`backend/.env`):
 
-## Learn More
+```bash
+cd backend && cp .env.example .env
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Uruchomienie
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Terminal 1 — backend:**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
 
-## Deploy on Vercel
+**Terminal 2 — frontend:**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm install
+npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Konfigurator: http://localhost:3000
+- Panel admina: http://localhost:3000/admin/login
+- API docs: http://localhost:8000/docs
+
+Po logowaniu użyj **Wgraj dane przykładowe** na dashboardzie admina.
+
+## Architektura API
+
+| Metoda | Ścieżka | Auth |
+|--------|---------|------|
+| GET | `/api/catalog` | — |
+| GET | `/api/admin/{collection}` | Bearer (Firebase ID token) |
+| POST/PUT/DELETE | `/api/admin/...` | Bearer |
+
+Szczegóły: [`backend/README.md`](backend/README.md)
+
+## Struktura Firestore
+
+| Kolekcja | Opis |
+|----------|------|
+| `posts` | Słupki |
+| `panels` | Panele (wzory SVG) |
+| `spacerOptions` | Dystans / ażurowość |
+| `heights` | Wysokości (1–2,25 m) |
+| `colors` | Kolory (`#RRGGBB`) |
+
+Pola opcjonalne: `description`, `previewAsset` (URL zdjęcia).
+
+## Produkcja
+
+```bash
+npm run build && npm start
+# Backend: uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Ustaw `NEXT_PUBLIC_API_URL` na URL produkcyjnego API.
