@@ -8,11 +8,8 @@ import { Button } from "@/components/ui/button";
 
 const links = [
   { href: "/admin", label: "Dashboard" },
-  { href: "/admin/posts", label: "Słupki" },
-  { href: "/admin/panels", label: "Panele" },
-  { href: "/admin/spacers", label: "Dystanse" },
-  { href: "/admin/heights", label: "Wysokości" },
-  { href: "/admin/colors", label: "Kolory" },
+  { href: "/admin/fences", label: "Ogrodzenia" },
+  { href: "/admin/settings", label: "Ustawienia" },
 ];
 
 export function AdminNav() {
@@ -36,7 +33,7 @@ export function AdminNav() {
             href={link.href}
             className={cn(
               "rounded px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] transition-colors",
-              pathname === link.href
+              pathname === link.href || pathname.startsWith(`${link.href}/`)
                 ? "bg-[#ff3131] text-white"
                 : "text-[#6b7280] hover:bg-[#f4f5f5] hover:text-[#303638]",
             )}

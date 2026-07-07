@@ -1,5 +1,12 @@
-import type { CatalogCollections, CollectionName } from "@/lib/types";
+import type {
+  CatalogCollections,
+  CollectionName,
+  FeatureSettings,
+  PricingSettings,
+} from "@/lib/types";
 import { MOCK_CATALOG } from "@/lib/firebase/mock-catalog";
+import { DEFAULT_PRICING_SETTINGS } from "@/lib/pricing/defaults";
+import { normalizePricingSettings } from "@/lib/pricing/normalizePricing";
 
 function resolveApiUrl(): string {
   const env = process.env.NEXT_PUBLIC_API_URL;
@@ -62,6 +69,81 @@ async function request<T>(
 
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+export const DEFAULT_FEATURE_SETTINGS: FeatureSettings = {
+  bramaEnabled: true,
+  furtkaEnabled: true,
+};
+
+export async function fetchFeatures(): Promise<FeatureSettings> {
+  try {
+    return await request<FeatureSettings>("/api/features");
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 0 || err.status >= 500)) {
+      console.warn("[API] Fallback do domyślnych flag funkcji:", err.message);
+      return DEFAULT_FEATURE_SETTINGS;
+    }
+    throw err;
+  }
+}
+
+export async function fetchFeaturesForAdmin(
+  token: string,
+): Promise<FeatureSettings> {
+  return request<FeatureSettings>("/api/admin/features", { token });
+}
+
+export async function updateFeatures(
+  data: FeatureSettings,
+  token: string,
+): Promise<FeatureSettings> {
+  return request<FeatureSettings>("/api/admin/features", {
+    method: "PUT",
+    body: JSON.stringify(data),
+    token,
+  });
+}
+
+export async function fetchPricing(): Promise<PricingSettings> {
+  try {
+    const data = await request<PricingSettings>("/api/pricing");
+    return normalizePricingSettings(data);
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 0 || err.status >= 500)) {
+      console.warn("[API] Fallback do domyślnych stawek wyceny:", err.message);
+      return DEFAULT_PRICING_SETTINGS;
+    }
+    throw err;
+  }
+}
+
+export async function fetchPricingForAdmin(
+  token: string,
+): Promise<PricingSettings> {
+  const data = await request<PricingSettings>("/api/admin/pricing", { token });
+  return normalizePricingSettings(data);
+}
+
+export async function updatePricingSettings(
+  data: PricingSettings,
+  token: string,
+): Promise<PricingSettings> {
+  const saved = await request<PricingSettings>("/api/admin/pricing", {
+    method: "PUT",
+    body: JSON.stringify(data),
+    token,
+  });
+  return normalizePricingSettings(saved);
+}
+
+export async function applyDefaultPricing(
+  token: string,
+): Promise<{ message: string; counts: Record<string, number> }> {
+  return request("/api/admin/pricing/apply-defaults", {
+    method: "POST",
+    token,
+  });
 }
 
 export async function fetchActiveCatalog(): Promise<CatalogCollections> {

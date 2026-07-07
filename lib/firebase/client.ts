@@ -20,6 +20,14 @@ export function isFirebaseConfigured(): boolean {
   );
 }
 
+export function isStorageConfigured(): boolean {
+  return isFirebaseConfigured() && Boolean(firebaseConfig.storageBucket);
+}
+
+export function getFirebaseStorageBucket(): string | undefined {
+  return firebaseConfig.storageBucket;
+}
+
 export function isBrowser(): boolean {
   return typeof window !== "undefined";
 }

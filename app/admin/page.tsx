@@ -16,19 +16,16 @@ import {
 import { Loader2 } from "lucide-react";
 
 const sections = [
-  { href: "/admin/posts", title: "Słupki", desc: "Warianty słupków ogrodzenia" },
-  { href: "/admin/panels", title: "Panele", desc: "Wzory paneli betonowych" },
   {
-    href: "/admin/spacers",
-    title: "Dystanse",
-    desc: "Opcje dystansu i ażurowości",
+    href: "/admin/fences",
+    title: "Ogrodzenia",
+    desc: "Warianty, układ paneli, macierze kolorów, ceny i słupki",
   },
   {
-    href: "/admin/heights",
-    title: "Wysokości",
-    desc: "Dostępne wysokości płotu (1–2,25 m)",
+    href: "/admin/settings",
+    title: "Ustawienia",
+    desc: "Włączanie/wyłączanie bramy i furtki w konfiguratorze",
   },
-  { href: "/admin/colors", title: "Kolory", desc: "Kolory malowania" },
 ];
 
 export default function AdminDashboardPage() {
@@ -66,7 +63,7 @@ export default function AdminDashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         {sections.map((s) => (
           <Link key={s.href} href={s.href}>
             <Card className="h-full transition-shadow hover:shadow-md">
@@ -89,7 +86,7 @@ export default function AdminDashboardPage() {
           <CardHeader>
             <CardTitle className="text-lg">Dane startowe</CardTitle>
             <CardDescription>
-              Jednorazowo wgraj przykładowe słupki, panele, wysokości i kolory do
+              Jednorazowo wgraj przykładowe bloki, warianty, wysokości i kolory do
               Firestore przez API.
             </CardDescription>
           </CardHeader>

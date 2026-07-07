@@ -40,12 +40,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { PATTERN_OPTIONS } from "@/lib/fence/patterns";
+import { AssetUploader } from "@/components/admin/AssetUploader";
 
 type FieldConfig = {
   name: string;
   label: string;
-  type: "text" | "number" | "boolean" | "select" | "color";
+  type: "text" | "number" | "boolean" | "select" | "color" | "image";
   options?: { value: string; label: string }[];
+  storagePath?: (ctx: {
+    form: Record<string, unknown>;
+    editingId?: string;
+  }) => string | null;
+  imageHint?: string;
 };
 
 type EntityManagerProps<
@@ -107,9 +113,22 @@ export function EntityManager<
     load();
   }, [load]);
 
+  function nextSortOrder(): number {
+    if (items.length === 0) return 0;
+    return Math.max(...items.map((item) => item.sortOrder)) + 1;
+  }
+
+  function normalizeFormValues(data: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      out[key] = value === null ? "" : value;
+    }
+    return out;
+  }
+
   function openCreate() {
     setEditing(null);
-    setForm({ ...emptyItem });
+    setForm({ ...emptyItem, sortOrder: nextSortOrder() });
     setFormError(null);
     setDialogOpen(true);
   }
@@ -117,7 +136,7 @@ export function EntityManager<
   function openEdit(item: T) {
     setEditing(item);
     const { id: _id, ...rest } = item as T & { id: string };
-    setForm(rest as Record<string, unknown>);
+    setForm(normalizeFormValues(rest as Record<string, unknown>));
     setFormError(null);
     setDialogOpen(true);
   }
@@ -188,6 +207,7 @@ export function EntityManager<
           <Label>{field.label}</Label>
           <Select
             value={String(value ?? "")}
+            items={opts}
             onValueChange={(v) => setForm((f) => ({ ...f, [field.name]: v }))}
           >
             <SelectTrigger>
@@ -201,6 +221,32 @@ export function EntityManager<
               ))}
             </SelectContent>
           </Select>
+        </div>
+      );
+    }
+    if (field.type === "image") {
+      const storagePath = field.storagePath?.({
+        form,
+        editingId: editing?.id,
+      });
+      return (
+        <div key={field.name} className="space-y-1.5">
+          <AssetUploader
+            label={field.label}
+            value={String(value ?? "")}
+            storagePath={storagePath ?? ""}
+            onChange={(url) =>
+              setForm((f) => ({ ...f, [field.name]: url }))
+            }
+            onClear={() => setForm((f) => ({ ...f, [field.name]: null }))}
+            disabled={!canManage || !storagePath}
+          />
+          {!storagePath && (
+            <p className="text-muted-foreground text-xs">
+              {field.imageHint ??
+                "Zapisz wpis, aby móc wgrać zdjęcie (wymagany identyfikator)."}
+            </p>
+          )}
         </div>
       );
     }

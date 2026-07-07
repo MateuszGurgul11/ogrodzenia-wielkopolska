@@ -1,24 +1,44 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, FileDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
   CatalogCollections,
   ConfiguratorSelection,
   Color,
+  FenceVariant,
   Height,
-  Panel,
   Post,
-  SpacerOption,
 } from "@/lib/types";
 import {
   type ConfiguratorTab,
   type GatePosition,
   MAX_PREVIEW_PANELS,
   MIN_PREVIEW_PANELS,
+  getNextConfiguratorTab,
+  resolveQuotePerimeterM,
   useConfiguratorStore,
 } from "@/lib/configurator/state";
+import { calculateStackUnitPrice } from "@/lib/pricing/calculateFenceQuote";
+import {
+  getAzurGapOptions,
+  resolveFenceVariant,
+  resolveStackVersion,
+  resolveVariantUnits,
+  versionSupportsAzurowosc,
+} from "@/lib/fence/resolveStack";
+import { getStackVersions } from "@/lib/fence/stackVersions";
 import { ConfiguratorTabs } from "./ConfiguratorTabs";
+import { BackgroundPicker } from "./BackgroundPicker";
+import { QuoteSidebarPanel } from "./QuoteSidebarPanel";
+import { PdfDocument } from "./PdfDocument";
+import { calculateQuote } from "@/lib/pricing/calculateQuote";
+import { generateConfiguratorPdf } from "@/lib/pdf/generateConfiguratorPdf";
+import {
+  formatElementPriceSubtitle,
+  getElementsByType,
+} from "@/lib/pricing/element-prices";
 
 type Props = {
   catalog: CatalogCollections;
@@ -27,6 +47,24 @@ type Props = {
   onSelect: (partial: Partial<ConfiguratorSelection>) => void;
   onTabChange: (tab: ConfiguratorTab) => void;
 };
+
+function countAzurPanels(
+  catalog: CatalogCollections,
+  variant: FenceVariant,
+  heightM: number,
+  gapCm: number | null,
+  stackVersionId: string | null,
+): number {
+  const units = resolveVariantUnits({
+    variant,
+    stackVersionId,
+    blocks: catalog.fenceBlocks,
+    heightM,
+    azurowoscEnabled: true,
+    azurowoscGapCm: gapCm,
+  });
+  return units.filter((u) => !u.isGap && u.blockId).length;
+}
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -83,6 +121,54 @@ function ModelCard({
   );
 }
 
+function formatHeightMultiplier(value?: number): string {
+  if (value == null || value === 1) return "×1,00";
+  return `×${value.toFixed(2)}`;
+}
+
+function formatOpeningSummary(
+  enabled: boolean,
+  position: GatePosition,
+  labels: Record<GatePosition, string>,
+): string {
+  return enabled ? `Tak · ${labels[position]}` : "Nie";
+}
+
+function OpeningPositionPicker({
+  label,
+  value,
+  onChange,
+  labels,
+}: {
+  label: string;
+  value: GatePosition;
+  onChange: (position: GatePosition) => void;
+  labels: Record<GatePosition, string>;
+}) {
+  return (
+    <div className="mt-4">
+      <SectionLabel>{label}</SectionLabel>
+      <div className="grid grid-cols-1 gap-2">
+        {(["left", "center", "right"] as GatePosition[]).map((pos) => (
+          <button
+            key={pos}
+            type="button"
+            onClick={() => onChange(pos)}
+            className={cn(
+              "rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition-all",
+              value === pos
+                ? "border-[#ff3131] bg-[#2a1515] text-white"
+                : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
+            )}
+          >
+            {labels[pos]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function OptionSidebar({
   catalog,
   selection,
@@ -94,32 +180,160 @@ export function OptionSidebar({
     (h) => h.id === selection.heightId,
   );
   const selectedColor = catalog.colors.find((c) => c.id === selection.colorId);
-  const selectedPanel = catalog.panels.find((p) => p.id === selection.panelId);
-  const selectedPost = catalog.posts.find((p) => p.id === selection.postId);
-  const selectedSpacer = catalog.spacerOptions.find(
-    (s) => s.id === selection.spacerId,
+  const selectedVariant = resolveFenceVariant(
+    catalog,
+    selection.fenceVariantId,
   );
-  const gateEnabled = useConfiguratorStore((s) => s.gateEnabled);
-  const gatePosition = useConfiguratorStore((s) => s.gatePosition);
-  const setGateEnabled = useConfiguratorStore((s) => s.setGateEnabled);
-  const setGatePosition = useConfiguratorStore((s) => s.setGatePosition);
+  const stackVersions = useMemo(
+    () => (selectedVariant ? getStackVersions(selectedVariant) : []),
+    [selectedVariant],
+  );
+  const activeStackVersion = useMemo(() => {
+    if (!selectedVariant) return null;
+    return resolveStackVersion(selectedVariant, selection.stackVersionId);
+  }, [selectedVariant, selection.stackVersionId]);
+  const allowedHeights = useMemo(
+    () =>
+      selectedVariant && selectedVariant.heightIds.length > 0
+        ? catalog.heights.filter((h) =>
+            selectedVariant.heightIds.includes(h.id),
+          )
+        : catalog.heights,
+    [catalog.heights, selectedVariant],
+  );
+
+  // Wysokość spoza dozwolonych dla wariantu — przełącz na pierwszą dozwoloną.
+  useEffect(() => {
+    if (allowedHeights.length === 0) return;
+    if (!allowedHeights.some((h) => h.id === selection.heightId)) {
+      onSelect({ heightId: allowedHeights[0].id });
+    }
+  }, [allowedHeights, selection.heightId, onSelect]);
+
+  useEffect(() => {
+    if (!selectedVariant || stackVersions.length === 0) return;
+    if (!stackVersions.some((v) => v.id === selection.stackVersionId)) {
+      onSelect({ stackVersionId: stackVersions[0].id });
+    }
+  }, [selectedVariant, stackVersions, selection.stackVersionId, onSelect]);
+  const selectedPost = catalog.posts.find(
+    (p) => p.id === selectedVariant?.postId,
+  );
+  const bramaEnabled = useConfiguratorStore((s) => s.bramaEnabled);
+  const bramaElementId = useConfiguratorStore((s) => s.bramaElementId);
+  const bramaOccupiedSpanM = useConfiguratorStore((s) => s.bramaOccupiedSpanM);
+  const furtkaEnabled = useConfiguratorStore((s) => s.furtkaEnabled);
+  const furtkaElementId = useConfiguratorStore((s) => s.furtkaElementId);
+  const furtkaPosition = useConfiguratorStore((s) => s.furtkaPosition);
+  const scope = useConfiguratorStore((s) => s.scope);
+  const features = useConfiguratorStore((s) => s.features);
+  const manualQuotePerimeterM = useConfiguratorStore((s) => s.manualQuotePerimeterM);
+  const manualQuoteFrontLengthM = useConfiguratorStore(
+    (s) => s.manualQuoteFrontLengthM,
+  );
+  const quoteFenceScope = useConfiguratorStore((s) => s.quoteFenceScope);
+  const setBramaElementId = useConfiguratorStore((s) => s.setBramaElementId);
+  const setFurtkaElementId = useConfiguratorStore((s) => s.setFurtkaElementId);
   const previewPanelCount = useConfiguratorStore((s) => s.previewPanelCount);
   const setPreviewPanelCount = useConfiguratorStore((s) => s.setPreviewPanelCount);
+  const pricing = useConfiguratorStore((s) => s.pricing);
+  const quotePerimeterM = useConfiguratorStore((s) => s.quotePerimeterM);
+  const quoteFenceClosed = useConfiguratorStore((s) => s.quoteFenceClosed);
 
-  const gatePositionLabels: Record<GatePosition, string> = {
+  const openingPositionLabels: Record<GatePosition, string> = {
     left: "Lewa sekcja",
     center: "Środkowa sekcja",
     right: "Prawa sekcja",
   };
 
-  const heightCm = selectedHeight
-    ? Math.round(selectedHeight.valueM * 100)
-    : 150;
+  const bramaOptions = useMemo(
+    () => getElementsByType(catalog, "brama"),
+    [catalog],
+  );
+  const furtkaOptions = useMemo(
+    () => getElementsByType(catalog, "furtka"),
+    [catalog],
+  );
+
+  const quote = useMemo(() => {
+    const effectivePerimeterM = resolveQuotePerimeterM({
+      quoteFenceClosed,
+      quotePerimeterM,
+      quoteFenceScope,
+      manualQuotePerimeterM,
+      manualQuoteFrontLengthM,
+    });
+    return calculateQuote({
+      catalog,
+      selection,
+      pricing,
+      perimeterM: effectivePerimeterM,
+      fenceEnabled: scope.fence,
+      bramaEnabled,
+      bramaElementId,
+      bramaOccupiedSpanM,
+      furtkaEnabled,
+      furtkaElementId,
+      furtkaPositionLabel: openingPositionLabels[furtkaPosition],
+      fallbackPanelCount: previewPanelCount,
+    });
+  }, [
+    catalog,
+    selection,
+    pricing,
+    quoteFenceClosed,
+    quotePerimeterM,
+    quoteFenceScope,
+    manualQuotePerimeterM,
+    manualQuoteFrontLengthM,
+    scope.fence,
+    bramaEnabled,
+    bramaElementId,
+    bramaOccupiedSpanM,
+    furtkaEnabled,
+    furtkaElementId,
+    furtkaPosition,
+    previewPanelCount,
+  ]);
+
+  const effectiveQuotePerimeterM = useMemo(
+    () =>
+      resolveQuotePerimeterM({
+        quoteFenceClosed,
+        quotePerimeterM,
+        quoteFenceScope,
+        manualQuotePerimeterM,
+        manualQuoteFrontLengthM,
+      }),
+    [
+      quoteFenceClosed,
+      quotePerimeterM,
+      quoteFenceScope,
+      manualQuotePerimeterM,
+      manualQuoteFrontLengthM,
+    ],
+  );
+
+  const nextTab = getNextConfiguratorTab(activeTab, scope);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  async function handleDownloadPdf() {
+    if (!pdfContainerRef.current) return;
+    setIsGeneratingPdf(true);
+    try {
+      await generateConfiguratorPdf(pdfContainerRef.current);
+    } catch (error) {
+      console.error("[PDF] Nie udało się wygenerować pliku:", error);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-[#2a2a2a] px-5 py-4">
-        <h1 className="font-heading text-lg font-bold text-white">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="hidden border-b border-[#2a2a2a] px-5 py-4 lg:block">
+        <h1 className="font-heading text-lg font-bold text-white max-lg:text-base">
           Konfigurator Ogrodzenia
         </h1>
         <p className="mt-0.5 text-[11px] text-[#666]">
@@ -129,23 +343,136 @@ export function OptionSidebar({
 
       <ConfiguratorTabs active={activeTab} onChange={onTabChange} />
 
-      <div className="flex-1 overflow-y-auto px-5 py-5 scrollbar-dark">
+      <div className="mobile-drawer-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 scrollbar-dark max-lg:px-4 max-lg:landscape:py-3">
         {activeTab === "model" && (
           <div className="space-y-6">
             <div>
-              <SectionLabel>Wybór modelu</SectionLabel>
+              <SectionLabel>Wariant ogrodzenia</SectionLabel>
               <div className="flex flex-col gap-2">
-                {catalog.panels.map((panel: Panel) => (
-                  <ModelCard
-                    key={panel.id}
-                    selected={selection.panelId === panel.id}
-                    title={panel.name}
-                    subtitle={`Wzór: ${panel.patternId.replace("pattern-", "")}`}
-                    onClick={() => onSelect({ panelId: panel.id })}
-                  />
-                ))}
+                {catalog.fenceVariants.map((variant: FenceVariant) => {
+                  const heightM = selectedHeight?.valueM ?? 2;
+                  const versions = getStackVersions(variant);
+                  const firstVersion = versions[0];
+                  const unitPrice = calculateStackUnitPrice(
+                    catalog,
+                    variant,
+                    heightM,
+                    selection.colorId,
+                    false,
+                    selectedHeight?.priceMultiplier ?? 1,
+                    null,
+                    firstVersion?.id ?? null,
+                  );
+                  const versionInfo =
+                    versions.length > 1
+                      ? `${versions.length} wersje`
+                      : null;
+                  return (
+                    <ModelCard
+                      key={variant.id}
+                      selected={selection.fenceVariantId === variant.id}
+                      title={variant.name}
+                      subtitle={`${unitPrice.toLocaleString("pl-PL")} PLN/odcinek${versionInfo ? ` · ${versionInfo}` : ""}`}
+                      onClick={() =>
+                        onSelect({
+                          fenceVariantId: variant.id,
+                          stackVersionId: versions[0]?.id ?? null,
+                          azurowoscEnabled: false,
+                          azurowoscGapCm: null,
+                        })
+                      }
+                    />
+                  );
+                })}
               </div>
             </div>
+
+            {selectedVariant && stackVersions.length > 0 && (
+              <div>
+                <SectionLabel>Wersja</SectionLabel>
+                <div className="flex flex-wrap gap-2">
+                  {stackVersions.map((version) => (
+                    <button
+                      key={version.id}
+                      type="button"
+                      onClick={() =>
+                        onSelect({ stackVersionId: version.id })
+                      }
+                      className={cn(
+                        "rounded-lg border px-3 py-2.5 text-sm font-semibold transition-all",
+                        selection.stackVersionId === version.id
+                          ? "border-[#ff3131] bg-[#2a1515] text-white"
+                          : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
+                      )}
+                    >
+                      {version.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedVariant &&
+              activeStackVersion &&
+              versionSupportsAzurowosc(activeStackVersion) && (
+              <div>
+                <SectionLabel>Ażurowość</SectionLabel>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onSelect({ azurowoscEnabled: false, azurowoscGapCm: null })
+                    }
+                    className={cn(
+                      "flex-1 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-all",
+                      !selection.azurowoscEnabled
+                        ? "border-[#ff3131] bg-[#2a1515] text-white"
+                        : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
+                    )}
+                  >
+                    Szczelne
+                  </button>
+                  {(getAzurGapOptions(activeStackVersion).length > 0
+                    ? getAzurGapOptions(activeStackVersion)
+                    : [null]
+                  ).map((gap) => {
+                    const active =
+                      selection.azurowoscEnabled &&
+                      (gap === null || selection.azurowoscGapCm === gap);
+                    const panels = countAzurPanels(
+                      catalog,
+                      selectedVariant,
+                      selectedHeight?.valueM ?? 2,
+                      gap,
+                      selection.stackVersionId,
+                    );
+                    return (
+                      <button
+                        key={gap ?? "legacy"}
+                        type="button"
+                        onClick={() =>
+                          onSelect({
+                            azurowoscEnabled: true,
+                            azurowoscGapCm: gap,
+                          })
+                        }
+                        className={cn(
+                          "flex-1 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-all",
+                          active
+                            ? "border-[#ff3131] bg-[#2a1515] text-white"
+                            : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
+                        )}
+                      >
+                        {gap === null ? "Z przerwami" : `Ażur ${gap} cm`}
+                        <span className="mt-0.5 block text-[10px] font-normal opacity-70">
+                          {panels} paneli
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div>
               <SectionLabel>Kolor (RAL)</SectionLabel>
@@ -176,25 +503,6 @@ export function OptionSidebar({
                 </p>
               )}
             </div>
-
-            <div>
-              <SectionLabel>Dystans / ażurowość</SectionLabel>
-              <div className="flex flex-col gap-2">
-                {catalog.spacerOptions.map((spacer: SpacerOption) => (
-                  <ModelCard
-                    key={spacer.id}
-                    selected={selection.spacerId === spacer.id}
-                    title={spacer.name}
-                    subtitle={
-                      spacer.hasSpacer
-                        ? `Ażurowość ${Math.round(spacer.openness * 100)}%`
-                        : "Pełne panele bez przerw"
-                    }
-                    onClick={() => onSelect({ spacerId: spacer.id })}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
@@ -218,7 +526,7 @@ export function OptionSidebar({
                 onChange={(e) => setPreviewPanelCount(Number(e.target.value))}
                 className="w-full accent-[#ff3131]"
               />
-              <p className="mt-2 text-[10px] leading-relaxed text-[#666]">
+              <p className="mt-2 text-[10px] leading-relaxed text-[#666] max-lg:landscape:hidden">
                 Przeciągnij boczne uchwyty płotu w podglądzie, aby szybko
                 dodać lub usunąć panele.
               </p>
@@ -226,7 +534,7 @@ export function OptionSidebar({
 
             <SectionLabel>Wysokość — presety</SectionLabel>
             <div className="grid grid-cols-2 gap-2">
-              {catalog.heights.map((height: Height) => (
+              {allowedHeights.map((height: Height) => (
                 <button
                   key={height.id}
                   type="button"
@@ -238,8 +546,11 @@ export function OptionSidebar({
                       : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
                   )}
                 >
-                  <span className="font-heading text-lg font-bold">
+                  <span className="block font-heading text-lg font-bold">
                     {height.label}
+                  </span>
+                  <span className="mt-0.5 block text-[10px] text-[#888]">
+                    {formatHeightMultiplier(height.priceMultiplier)}
                   </span>
                 </button>
               ))}
@@ -249,48 +560,77 @@ export function OptionSidebar({
 
         {activeTab === "gates" && (
           <div className="space-y-6">
+            {scope.gate && features.bramaEnabled && (
+            <div>
+              <SectionLabel>Brama wjazdowa</SectionLabel>
+              <div className="flex flex-col gap-2">
+                <ModelCard
+                  selected={!bramaElementId}
+                  title="Bez bramy"
+                  subtitle="Ciągłe ogrodzenie panelowe"
+                  onClick={() => setBramaElementId(null)}
+                />
+                {bramaOptions.map((element) => (
+                  <ModelCard
+                    key={element.id}
+                    selected={bramaElementId === element.id}
+                    title={element.name}
+                    subtitle={formatElementPriceSubtitle(element)}
+                    onClick={() => setBramaElementId(element.id)}
+                  />
+                ))}
+              </div>
+              {bramaOptions.length === 0 && (
+                <p className="mt-2 text-[11px] text-[#888]">
+                  Brak aktywnych bram w katalogu — dodaj je w panelu admina.
+                </p>
+              )}
+              {bramaEnabled && (
+                <p className="mt-3 text-[11px] leading-relaxed text-[#888]">
+                  Przejdź do zakładki <strong className="text-[#ccc]">Wycena</strong>,
+                  zamknij obrys i przeciągnij uchwyty <strong className="text-[#ccc]">B1/B2</strong>{" "}
+                  wzdłuż linii ogrodzenia, aby ustawić szerokość bramy.
+                </p>
+              )}
+            </div>
+            )}
+
+            {scope.wicket && features.furtkaEnabled && (
             <div>
               <SectionLabel>Furtka</SectionLabel>
               <div className="flex flex-col gap-2">
                 <ModelCard
-                  selected={!gateEnabled}
+                  selected={!furtkaElementId}
                   title="Bez furtki"
                   subtitle="Ciągłe ogrodzenie panelowe"
-                  onClick={() => setGateEnabled(false)}
+                  onClick={() => setFurtkaElementId(null)}
                 />
-                <ModelCard
-                  selected={gateEnabled}
-                  title="Z furtką"
-                  subtitle="Wąskie wejście w wybranej sekcji"
-                  onClick={() => setGateEnabled(true)}
-                />
+                {furtkaOptions.map((element) => (
+                  <ModelCard
+                    key={element.id}
+                    selected={furtkaElementId === element.id}
+                    title={element.name}
+                    subtitle={formatElementPriceSubtitle(element)}
+                    onClick={() => setFurtkaElementId(element.id)}
+                  />
+                ))}
               </div>
-              {gateEnabled && (
-                <div className="mt-4">
-                  <SectionLabel>Pozycja furtki</SectionLabel>
-                  <div className="grid grid-cols-1 gap-2">
-                    {(["left", "center", "right"] as GatePosition[]).map(
-                      (pos) => (
-                        <button
-                          key={pos}
-                          type="button"
-                          onClick={() => setGatePosition(pos)}
-                          className={cn(
-                            "rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition-all",
-                            gatePosition === pos
-                              ? "border-[#ff3131] bg-[#2a1515] text-white"
-                              : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
-                          )}
-                        >
-                          {gatePositionLabels[pos]}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                </div>
+              {furtkaOptions.length === 0 && (
+                <p className="mt-2 text-[11px] text-[#888]">
+                  Brak aktywnych furtek w katalogu — dodaj je w panelu admina.
+                </p>
+              )}
+              {furtkaEnabled && (
+                <p className="mt-3 text-[11px] leading-relaxed text-[#888]">
+                  Na zakładce <strong className="text-[#ccc]">Wycena</strong> przeciągnij marker{" "}
+                  <strong className="text-[#ccc]">F</strong> wzdłuż obrysu, aby wskazać miejsce
+                  furtki (stała szerokość 1 panelu).
+                </p>
               )}
             </div>
+            )}
 
+            {(scope.gate || scope.wicket) && (
             <div>
               <SectionLabel>Wybór słupka</SectionLabel>
               <div className="flex flex-col gap-2">
@@ -305,24 +645,66 @@ export function OptionSidebar({
                 ))}
               </div>
             </div>
+            )}
           </div>
         )}
 
+        {activeTab === "quote" && (
+          <QuoteSidebarPanel catalog={catalog} selection={selection} />
+        )}
+
         {activeTab === "review" && (
-          <div className="space-y-4">
-            <SectionLabel>Twoja konfiguracja</SectionLabel>
+          <div className="space-y-6">
+            <div>
+              <SectionLabel>Tło podglądu</SectionLabel>
+              <BackgroundPicker />
+            </div>
+
+            <div className="space-y-4">
+              <SectionLabel>Twoja konfiguracja</SectionLabel>
             {[
-              { label: "Model panelu", value: selectedPanel?.name },
+              { label: "Wariant", value: selectedVariant?.name },
+              { label: "Wersja", value: activeStackVersion?.name },
               { label: "Kolor", value: selectedColor?.name },
-              { label: "Dystans", value: selectedSpacer?.name },
+              {
+                label: "Ażurowość",
+                value:
+                  activeStackVersion &&
+                  versionSupportsAzurowosc(activeStackVersion) &&
+                  selection.azurowoscEnabled
+                    ? `${selection.azurowoscGapCm != null ? `${selection.azurowoscGapCm} cm · ` : ""}${countAzurPanels(catalog, selectedVariant!, selectedHeight?.valueM ?? 2, selection.azurowoscGapCm, selection.stackVersionId)} paneli`
+                    : "Nie",
+              },
               { label: "Wysokość", value: selectedHeight?.label },
               { label: "Panele w podglądzie", value: `${previewPanelCount} szt.` },
               { label: "Słupek", value: selectedPost?.name },
               {
+                label: "Brama wjazdowa",
+                value:
+                  quote.configurationItems.find((i) => i.label === "Brama wjazdowa")
+                    ?.value ?? "Nie",
+              },
+              {
                 label: "Furtka",
-                value: gateEnabled
-                  ? `Tak · ${gatePositionLabels[gatePosition]}`
-                  : "Nie",
+                value:
+                  quote.configurationItems.find((i) => i.label === "Furtka")
+                    ?.value ?? "Nie",
+              },
+              {
+                label: "Długość z rzutu",
+                value: quoteFenceClosed && quotePerimeterM
+                  ? `${quotePerimeterM.toFixed(1)} m bieżących`
+                  : "—",
+              },
+              {
+                label: "Stawka za panel",
+                value: scope.fence
+                  ? `${quote.pricePerPanelNet.toLocaleString("pl-PL")} PLN/panel`
+                  : "—",
+              },
+              {
+                label: "Wycena orientacyjna",
+                value: `${Math.round(quote.totalNet).toLocaleString("pl-PL")} PLN netto`,
               },
             ].map(({ label, value }) => (
               <div
@@ -353,26 +735,103 @@ export function OptionSidebar({
                 </div>
               </div>
             )}
+            <div className="rounded-lg border border-[#333] bg-[#222] p-3">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#666]">
+                Składniki ceny
+              </p>
+              <div className="space-y-1.5">
+                {quote.breakdown.map((row, index) => (
+                  <div
+                    key={`${row.label}-${index}`}
+                    className="flex justify-between gap-2 text-[11px]"
+                  >
+                    <span className="text-[#888]">{row.label}</span>
+                    {row.amount > 0 ? (
+                      <span className="font-semibold text-white">
+                        {Math.round(row.amount).toLocaleString("pl-PL")} PLN
+                      </span>
+                    ) : (
+                      <span className="text-[#666]">{row.value}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            </div>
+
+            <PdfDocument
+              ref={pdfContainerRef}
+              catalog={catalog}
+              selection={selection}
+              pricing={pricing}
+              scope={scope}
+              quote={quote}
+              selectedVariant={selectedVariant}
+              selectedColor={selectedColor}
+              selectedHeight={selectedHeight}
+              selectedPost={selectedPost}
+              previewPanelCount={previewPanelCount}
+              effectiveQuotePerimeterM={effectiveQuotePerimeterM}
+              bramaEnabled={bramaEnabled}
+              bramaElementId={bramaElementId}
+              furtkaEnabled={furtkaEnabled}
+              furtkaElementId={furtkaElementId}
+              furtkaPosition={furtkaPosition}
+            />
           </div>
         )}
       </div>
 
-      <div className="shrink-0 border-t border-[#2a2a2a] bg-[#161616] px-5 py-4">
-        <div className="mb-3 flex items-baseline justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#666]">
-            Wycena orientacyjna
-          </span>
-          <span className="font-heading text-xl font-bold text-white">
-            {Math.round(previewPanelCount * heightCm * 3.2).toLocaleString("pl-PL")}{" "}
-            <span className="text-sm font-semibold text-[#888]">PLN netto</span>
-          </span>
+      <div className="shrink-0 border-t border-[#2a2a2a] bg-[#161616] px-5 py-4 max-lg:landscape:px-4 max-lg:landscape:py-2">
+        <div className="mb-3 max-lg:landscape:mb-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#666]">
+              Wycena orientacyjna
+            </span>
+            <span className="font-heading text-xl font-bold text-white max-lg:landscape:text-lg">
+              {Math.round(quote.totalNet).toLocaleString("pl-PL")}{" "}
+              <span className="text-sm font-semibold text-[#888] max-lg:landscape:text-xs">
+                PLN netto
+              </span>
+            </span>
+          </div>
+          <p className="mt-1 text-right text-[10px] text-[#666] max-lg:landscape:hidden">
+            {scope.fence ? (
+              <>
+                {quote.pricePerPanelNet.toLocaleString("pl-PL")} PLN/odcinek ·{" "}
+                {quote.estimatedPanels} odcinków
+              </>
+            ) : (
+              <>Brama i furtka — ceny jednorazowe</>
+            )}
+          </p>
         </div>
-        <button
-          type="button"
-          className="w-full rounded-lg bg-[#ff3131] py-3.5 text-[11px] font-bold uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#e02020]"
-        >
-          Zapisz konfigurację
-        </button>
+        {activeTab === "review" ? (
+          <button
+            type="button"
+            disabled={isGeneratingPdf}
+            onClick={handleDownloadPdf}
+            className={cn(
+              "flex w-full items-center justify-center gap-2 rounded-lg bg-[#ff3131] py-3.5 text-[11px] font-bold uppercase tracking-[0.18em] text-white transition-colors max-lg:landscape:py-2.5",
+              isGeneratingPdf ? "cursor-wait opacity-60" : "hover:bg-[#e02020]",
+            )}
+          >
+            <FileDown className="h-4 w-4" />
+            {isGeneratingPdf ? "Generowanie PDF…" : "Pobierz PDF"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={!nextTab}
+            onClick={() => nextTab && onTabChange(nextTab)}
+            className={cn(
+              "w-full rounded-lg bg-[#ff3131] py-3.5 text-[11px] font-bold uppercase tracking-[0.18em] text-white transition-colors max-lg:landscape:py-2.5",
+              nextTab ? "hover:bg-[#e02020]" : "cursor-not-allowed opacity-50",
+            )}
+          >
+            Przejdź dalej
+          </button>
+        )}
       </div>
     </div>
   );

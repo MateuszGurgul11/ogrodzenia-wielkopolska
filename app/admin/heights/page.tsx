@@ -7,6 +7,7 @@ import type { Height } from "@/lib/types";
 const emptyItem = {
   label: "",
   valueM: 1.5,
+  priceMultiplier: 1,
   sortOrder: 0,
   active: true,
 };
@@ -21,6 +22,11 @@ export default function AdminHeightsPage() {
       fields={[
         { name: "label", label: "Etykieta (np. 1,50 m)", type: "text" },
         { name: "valueM", label: "Wartość (m)", type: "number" },
+        {
+          name: "priceMultiplier",
+          label: "Mnożnik ceny",
+          type: "number",
+        },
         { name: "sortOrder", label: "Kolejność", type: "number" },
         { name: "active", label: "Aktywny", type: "boolean" },
       ]}

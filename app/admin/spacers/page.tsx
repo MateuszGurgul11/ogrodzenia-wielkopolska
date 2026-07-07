@@ -8,6 +8,7 @@ const emptyItem = {
   name: "",
   hasSpacer: false,
   openness: 0,
+  priceSurchargePerMeter: 0,
   sortOrder: 0,
   active: true,
 };
@@ -23,6 +24,16 @@ export default function AdminSpacersPage() {
         { name: "name", label: "Nazwa", type: "text" },
         { name: "hasSpacer", label: "Z dystansem", type: "boolean" },
         { name: "openness", label: "Ażurowość (0–1)", type: "number" },
+        {
+          name: "priceSurchargePerPanel",
+          label: "Dopłata za panel (PLN)",
+          type: "number",
+        },
+        {
+          name: "priceSurchargePerMeter",
+          label: "Dopłata za m bieżący (PLN, fallback)",
+          type: "number",
+        },
         { name: "sortOrder", label: "Kolejność", type: "number" },
         { name: "active", label: "Aktywny", type: "boolean" },
       ]}

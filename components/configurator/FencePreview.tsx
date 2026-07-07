@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Hand,
-  ImageOff,
-  ImagePlus,
   Maximize2,
   Minimize2,
   MoveHorizontal,
@@ -19,6 +17,7 @@ import {
   VIEW_H,
 } from "@/lib/fence/renderFence";
 import type { PatternId } from "@/lib/fence/patterns";
+import { buildStackDrawUnits } from "@/lib/fence/buildStackDraw";
 import {
   getGatePanelIndex,
   MAX_PREVIEW_PANELS,
@@ -26,9 +25,19 @@ import {
   useConfiguratorStore,
 } from "@/lib/configurator/state";
 import type { CatalogCollections, ConfiguratorSelection } from "@/lib/types";
+import { resolveBackgroundUrl } from "@/lib/configurator/backgrounds";
+import {
+  resolveOpeningTextureUrl,
+  resolvePostTextureUrl,
+} from "@/lib/fence/resolveTexture";
+import {
+  resolveFenceVariant,
+  resolvePostHeightCm,
+} from "@/lib/fence/resolveStack";
+import { getWicketWidthCm } from "@/lib/pricing/variant-prices";
+import { PreviewControlsBar } from "./PreviewControlsBar";
+import { useIsLgUp, useIsMobileLandscape } from "@/lib/hooks/use-media-query";
 
-const MAX_BG_SIZE = 5 * 1024 * 1024;
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MIN_FENCE_SCALE = 0.6;
 const MAX_FENCE_SCALE = 3.5;
 const DEFAULT_FENCE_SCALE = 1.9;
@@ -42,7 +51,7 @@ const FENCE_TARGET_WIDTH_RATIO = 0.92;
 const FENCE_TARGET_WIDTH_PER_PANEL = 0.015;
 /** Odległość płotu od dołu sceny — większa wartość = wyżej na zdjęciu. */
 const FENCE_SCENE_BOTTOM_PERCENT = 15;
-const DEFAULT_PREVIEW_BG = "/preview/default-facade.png";
+const FENCE_SCENE_BOTTOM_PERCENT_MOBILE_LANDSCAPE = 32;
 
 type FenceTransform = { x: number; y: number; scale: number };
 type DragState = {
@@ -58,19 +67,69 @@ type ResizeState = {
   startX: number;
   startY: number;
   origScale: number;
+  origX: number;
+  origY: number;
+  origPanelCount: number;
+  sceneWidth: number;
+  hasWicket: boolean;
+  wicketWidthCm: number;
+  panelWidthCm: number;
 };
 type StretchState = {
   pointerId: number;
   side: "west" | "east";
   startX: number;
   origPanelCount: number;
+  origX: number;
+  origScale: number;
+  sceneWidth: number;
 };
+
+function clampPanelCount(count: number): number {
+  return Math.min(MAX_PREVIEW_PANELS, Math.max(MIN_PREVIEW_PANELS, count));
+}
+
+function compensateXForWidthChange(
+  anchor: "west" | "east",
+  origX: number,
+  origPanelCount: number,
+  newPanelCount: number,
+  scale: number,
+  sceneWidth: number,
+  hasWicket = false,
+  wicketWidthCm = getWicketWidthCm(250),
+  panelWidthCm = 250,
+): number {
+  const oldW = getFenceBaseWidthPx(
+    sceneWidth,
+    origPanelCount,
+    hasWicket,
+    wicketWidthCm,
+    panelWidthCm,
+  );
+  const newW = getFenceBaseWidthPx(
+    sceneWidth,
+    newPanelCount,
+    hasWicket,
+    wicketWidthCm,
+    panelWidthCm,
+  );
+  const deltaW = newW - oldW;
+  if (anchor === "west") return origX - (deltaW * scale) / 2;
+  return origX + (deltaW * scale) / 2;
+}
 
 function clampScale(scale: number) {
   return Math.min(MAX_FENCE_SCALE, Math.max(MIN_FENCE_SCALE, scale));
 }
 
-function getFenceBaseWidthPx(sceneWidth: number, panelCount: number): number {
+function getFenceBaseWidthPx(
+  sceneWidth: number,
+  panelCount: number,
+  hasWicket = false,
+  wicketWidthCm = getWicketWidthCm(250),
+  panelWidthCm = 250,
+): number {
   const remFallback =
     (FENCE_WIDTH_REM_BASE +
       (panelCount - MIN_PREVIEW_PANELS) * FENCE_WIDTH_REM_PER_PANEL) *
@@ -79,29 +138,33 @@ function getFenceBaseWidthPx(sceneWidth: number, panelCount: number): number {
   const ratio =
     FENCE_BASE_WIDTH_RATIO +
     (panelCount - MIN_PREVIEW_PANELS) * FENCE_BASE_WIDTH_PER_PANEL;
-  return sceneWidth * ratio;
+  let width = sceneWidth * ratio;
+  if (hasWicket) {
+    const panelShare = width / panelCount;
+    width += panelShare * (wicketWidthCm / panelWidthCm);
+  }
+  return width;
 }
 
-function getDefaultFenceScale(sceneWidth: number, panelCount: number): number {
+function getDefaultFenceScale(
+  sceneWidth: number,
+  panelCount: number,
+  hasWicket = false,
+  wicketWidthCm = getWicketWidthCm(250),
+  panelWidthCm = 250,
+): number {
   if (sceneWidth <= 0) return DEFAULT_FENCE_SCALE;
-  const baseWidth = getFenceBaseWidthPx(sceneWidth, panelCount);
+  const baseWidth = getFenceBaseWidthPx(
+    sceneWidth,
+    panelCount,
+    hasWicket,
+    wicketWidthCm,
+    panelWidthCm,
+  );
   const targetFraction =
     FENCE_TARGET_WIDTH_RATIO +
     (panelCount - MIN_PREVIEW_PANELS) * FENCE_TARGET_WIDTH_PER_PANEL;
   return clampScale((sceneWidth * targetFraction) / baseWidth);
-}
-
-function cornerDelta(corner: ResizeState["corner"], dx: number, dy: number) {
-  switch (corner) {
-    case "se":
-      return dx + dy;
-    case "nw":
-      return -dx - dy;
-    case "ne":
-      return dx - dy;
-    case "sw":
-      return -dx + dy;
-  }
 }
 
 function StretchHandle({
@@ -120,7 +183,7 @@ function StretchHandle({
     <div
       data-stretch-handle=""
       role="presentation"
-      className={`absolute z-30 h-4 w-4 rounded-sm border-2 border-white bg-[#ff3131] shadow-md ${pos[side]}`}
+      className={`absolute z-30 h-4 w-4 rounded-sm border-2 border-white bg-[#ff3131] shadow-md max-lg:h-5 max-lg:w-5 ${pos[side]}`}
       onPointerDown={(e) => onPointerDown(e, side)}
     />
   );
@@ -144,7 +207,7 @@ function ResizeHandle({
     <div
       data-resize-handle=""
       role="presentation"
-      className={`absolute z-30 h-3.5 w-3.5 rounded-sm border-2 border-white bg-[#ff3131] shadow-md ${pos[corner]}`}
+      className={`absolute z-30 h-3.5 w-3.5 rounded-sm border-2 border-white bg-[#ff3131] shadow-md max-lg:h-5 max-lg:w-5 ${pos[corner]}`}
       onPointerDown={(e) => onPointerDown(e, corner)}
     />
   );
@@ -191,7 +254,7 @@ function PreviewInfoBar({
   items: { label: string; value: string }[];
 }) {
   return (
-    <div className="pointer-events-none absolute left-4 right-24 top-4 z-20 flex flex-wrap gap-2">
+    <div className="pointer-events-none absolute left-4 right-24 top-4 z-20 hidden flex-wrap gap-2 lg:flex">
       {items.map(({ label, value }) => (
         <div
           key={label}
@@ -208,13 +271,17 @@ function PreviewInfoBar({
 }
 
 export function FencePreview({ catalog, selection }: Props) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRootRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
   const fenceRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const resizeRef = useRef<ResizeState | null>(null);
   const stretchRef = useRef<StretchState | null>(null);
+  const wicketLayoutRef = useRef({
+    hasWicket: false,
+    wicketWidthCm: getWicketWidthCm(250),
+    panelWidthCm: 250,
+  });
   const initialScaleApplied = useRef(false);
   const [fenceSelected, setFenceSelected] = useState(false);
   const [showFenceHint, setShowFenceHint] = useState(true);
@@ -228,20 +295,36 @@ export function FencePreview({ catalog, selection }: Props) {
   const [isDragging, setIsDragging] = useState(false);
 
   const backgroundImageUrl = useConfiguratorStore((s) => s.backgroundImageUrl);
-  const setBackgroundImage = useConfiguratorStore((s) => s.setBackgroundImage);
+  const backgroundPresetId = useConfiguratorStore((s) => s.backgroundPresetId);
   const clearBackgroundImage = useConfiguratorStore((s) => s.clearBackgroundImage);
-  const gateEnabled = useConfiguratorStore((s) => s.gateEnabled);
-  const gatePosition = useConfiguratorStore((s) => s.gatePosition);
+  const furtkaEnabled = useConfiguratorStore((s) => s.furtkaEnabled);
+  const furtkaElementId = useConfiguratorStore((s) => s.furtkaElementId);
+  const furtkaPosition = useConfiguratorStore((s) => s.furtkaPosition);
   const previewPanelCount = useConfiguratorStore((s) => s.previewPanelCount);
   const setPreviewPanelCount = useConfiguratorStore((s) => s.setPreviewPanelCount);
+  const pricing = useConfiguratorStore((s) => s.pricing);
   const sidebarOpen = useConfiguratorStore((s) => s.sidebarOpen);
   const toggleSidebarOpen = useConfiguratorStore((s) => s.toggleSidebarOpen);
+  const isLgUp = useIsLgUp();
+  const isMobileLandscape = useIsMobileLandscape();
+  const sceneBottomPercent = isMobileLandscape
+    ? FENCE_SCENE_BOTTOM_PERCENT_MOBILE_LANDSCAPE
+    : FENCE_SCENE_BOTTOM_PERCENT;
 
-  const post = catalog.posts.find((p) => p.id === selection.postId);
-  const panel = catalog.panels.find((p) => p.id === selection.panelId);
-  const spacer = catalog.spacerOptions.find((s) => s.id === selection.spacerId);
+  const post = catalog.posts.find(
+    (p) => p.id === resolveFenceVariant(catalog, selection.fenceVariantId)?.postId,
+  );
+  const variant = resolveFenceVariant(catalog, selection.fenceVariantId);
   const height = catalog.heights.find((h) => h.id === selection.heightId);
   const color = catalog.colors.find((c) => c.id === selection.colorId);
+
+  useEffect(() => {
+    wicketLayoutRef.current = {
+      hasWicket: furtkaEnabled,
+      wicketWidthCm: getWicketWidthCm(pricing.panelWidthCm),
+      panelWidthCm: pricing.panelWidthCm,
+    };
+  }, [furtkaEnabled, pricing.panelWidthCm]);
 
   useEffect(() => {
     return () => {
@@ -270,22 +353,29 @@ export function FencePreview({ catalog, selection }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!post || !panel || !spacer || !height || !color || sceneWidth <= 0) return;
+    if (!post || !variant || !height || !color || sceneWidth <= 0) return;
     if (initialScaleApplied.current) return;
     initialScaleApplied.current = true;
     setFenceTransform({
       x: 0,
       y: 0,
-      scale: getDefaultFenceScale(sceneWidth, previewPanelCount),
+      scale: getDefaultFenceScale(
+        sceneWidth,
+        previewPanelCount,
+        furtkaEnabled,
+        getWicketWidthCm(pricing.panelWidthCm),
+        pricing.panelWidthCm,
+      ),
     });
   }, [
     post,
-    panel,
-    spacer,
+    variant,
     height,
     color,
     sceneWidth,
     previewPanelCount,
+    furtkaEnabled,
+    pricing.panelWidthCm,
   ]);
 
   useEffect(() => {
@@ -302,12 +392,28 @@ export function FencePreview({ catalog, selection }: Props) {
       const resize = resizeRef.current;
       if (resize && e.pointerId === resize.pointerId) {
         const dx = e.clientX - resize.startX;
-        const dy = e.clientY - resize.startY;
-        const delta = cornerDelta(resize.corner, dx, dy);
-        setFenceTransform((t) => ({
-          ...t,
-          scale: clampScale(resize.origScale + delta * 0.008),
-        }));
+        const widthPx = getFenceBaseWidthPx(
+          resize.sceneWidth,
+          resize.origPanelCount,
+          resize.hasWicket,
+          resize.wicketWidthCm,
+          resize.panelWidthCm,
+        );
+        const anchorLeftEdge =
+          resize.corner === "ne" || resize.corner === "se";
+        const horizontalSign = anchorLeftEdge ? 1 : -1;
+        const newScale = clampScale(
+          resize.origScale + (horizontalSign * dx) / widthPx,
+        );
+        const scaleDiff = newScale - resize.origScale;
+        const newX = anchorLeftEdge
+          ? resize.origX + (widthPx * scaleDiff) / 2
+          : resize.origX - (widthPx * scaleDiff) / 2;
+        setFenceTransform({
+          x: newX,
+          y: resize.origY,
+          scale: newScale,
+        });
       }
 
       const stretch = stretchRef.current;
@@ -315,7 +421,22 @@ export function FencePreview({ catalog, selection }: Props) {
         const dx = e.clientX - stretch.startX;
         const signedDx = stretch.side === "east" ? dx : -dx;
         const deltaPanels = Math.round(signedDx / 45);
-        setPreviewPanelCount(stretch.origPanelCount + deltaPanels);
+        const newCount = clampPanelCount(stretch.origPanelCount + deltaPanels);
+        setPreviewPanelCount(newCount);
+        setFenceTransform((t) => ({
+          ...t,
+          x: compensateXForWidthChange(
+            stretch.side,
+            stretch.origX,
+            stretch.origPanelCount,
+            newCount,
+            stretch.origScale,
+            stretch.sceneWidth,
+            wicketLayoutRef.current.hasWicket,
+            wicketLayoutRef.current.wicketWidthCm,
+            wicketLayoutRef.current.panelWidthCm,
+          ),
+        }));
       }
     }
 
@@ -360,7 +481,13 @@ export function FencePreview({ catalog, selection }: Props) {
   function resetFenceTransform() {
     const scale =
       sceneWidth > 0
-        ? getDefaultFenceScale(sceneWidth, previewPanelCount)
+        ? getDefaultFenceScale(
+            sceneWidth,
+            previewPanelCount,
+            furtkaEnabled,
+            getWicketWidthCm(pricing.panelWidthCm),
+            pricing.panelWidthCm,
+          )
         : DEFAULT_FENCE_SCALE;
     setFenceTransform({ x: 0, y: 0, scale });
     setFenceSelected(false);
@@ -394,6 +521,9 @@ export function FencePreview({ catalog, selection }: Props) {
       side,
       startX: e.clientX,
       origPanelCount: previewPanelCount,
+      origX: fenceTransform.x,
+      origScale: fenceTransform.scale,
+      sceneWidth,
     };
   }
 
@@ -406,6 +536,13 @@ export function FencePreview({ catalog, selection }: Props) {
       startX: e.clientX,
       startY: e.clientY,
       origScale: fenceTransform.scale,
+      origX: fenceTransform.x,
+      origY: fenceTransform.y,
+      origPanelCount: previewPanelCount,
+      sceneWidth,
+      hasWicket: furtkaEnabled,
+      wicketWidthCm: getWicketWidthCm(pricing.panelWidthCm),
+      panelWidthCm: pricing.panelWidthCm,
     };
   }
 
@@ -420,94 +557,135 @@ export function FencePreview({ catalog, selection }: Props) {
     }));
   }
 
+  const openingPanelIndices = useMemo(() => {
+    const indices = new Set<number>();
+    if (furtkaEnabled) {
+      indices.add(getGatePanelIndex(furtkaPosition, previewPanelCount));
+    }
+    return [...indices];
+  }, [
+    furtkaEnabled,
+    furtkaPosition,
+    previewPanelCount,
+  ]);
+
   const svgMarkup = useMemo(() => {
-    if (!post || !panel || !spacer || !height || !color) return null;
+    if (!post || !variant || !height || !color) return null;
+
+    const stackUnits = buildStackDrawUnits({
+      catalog,
+      variant,
+      stackVersionId: selection.stackVersionId,
+      heightM: height.valueM,
+      colorId: selection.colorId,
+      azurowoscEnabled: selection.azurowoscEnabled,
+      azurowoscGapCm: selection.azurowoscGapCm,
+    });
+
+    const postTextureUrl = resolvePostTextureUrl(
+      catalog,
+      variant.postId,
+      selection.colorId,
+    );
+    const openingTextureUrl = furtkaEnabled
+      ? resolveOpeningTextureUrl(catalog, "furtka", furtkaElementId)
+      : null;
+
     return buildFenceSvg({
       heightM: height.valueM,
-      patternId: panel.patternId as PatternId,
+      patternId: "pattern-solid",
       colorHex: color.hex,
       postWidthCm: post.widthCm,
-      hasSpacer: spacer.hasSpacer,
-      openness: spacer.openness,
-      gateEnabled,
-      gatePanelIndex: getGatePanelIndex(gatePosition, previewPanelCount),
+      openingPanelIndices,
       panelCount: previewPanelCount,
       transparent: true,
+      postTextureUrl,
+      openingTextureUrl,
+      stackUnits,
+      postHeightCm: resolvePostHeightCm(variant, height.valueM),
     });
-  }, [post, panel, spacer, height, color, gateEnabled, gatePosition, previewPanelCount]);
+  }, [
+    post,
+    variant,
+    height,
+    color,
+    catalog,
+    selection.fenceVariantId,
+    selection.stackVersionId,
+    selection.colorId,
+    selection.azurowoscEnabled,
+    selection.azurowoscGapCm,
+    openingPanelIndices,
+    previewPanelCount,
+    furtkaEnabled,
+    furtkaElementId,
+    variant?.postHeightCm,
+    variant?.postHeightOffsetCm,
+  ]);
 
   const viewWidth = getViewWidth(previewPanelCount);
 
   const contentBounds = useMemo(() => {
-    if (!post || !height) return null;
+    if (!post || !height || !variant) return null;
     return getFenceContentBounds({
       heightM: height.valueM,
       postWidthCm: post.widthCm,
       panelCount: previewPanelCount,
+      postHeightCm: resolvePostHeightCm(variant, height.valueM),
     });
-  }, [post, height, previewPanelCount]);
+  }, [post, height, variant, previewPanelCount]);
 
   const fenceDisplayWidth =
     sceneWidth > 0
-      ? `${getFenceBaseWidthPx(sceneWidth, previewPanelCount)}px`
+      ? `${getFenceBaseWidthPx(
+          sceneWidth,
+          previewPanelCount,
+          furtkaEnabled,
+          getWicketWidthCm(pricing.panelWidthCm),
+          pricing.panelWidthCm,
+        )}px`
       : `${FENCE_WIDTH_REM_BASE + (previewPanelCount - MIN_PREVIEW_PANELS) * FENCE_WIDTH_REM_PER_PANEL}rem`;
 
-  const allSelected = post && panel && spacer && height && color;
+  const allSelected = post && variant && height && color;
   const heightCm = height ? Math.round(height.valueM * 100) : 0;
-  const sceneBackgroundUrl = backgroundImageUrl ?? DEFAULT_PREVIEW_BG;
-  const hasUserBackground = Boolean(backgroundImageUrl);
+  const sceneBackgroundUrl = resolveBackgroundUrl(
+    backgroundPresetId,
+    backgroundImageUrl,
+  );
 
-  const gatePositionLabel = {
+  const positionLabels = {
     left: "lewa sekcja",
     center: "środkowa sekcja",
     right: "prawa sekcja",
-  }[gatePosition];
+  };
+
+  const openingLabels: string[] = [];
+  if (furtkaEnabled && furtkaElementId) {
+    const furtkaElement = catalog.elements.find((e) => e.id === furtkaElementId);
+    openingLabels.push(
+      `${furtkaElement?.name ?? "Furtka"} · ${positionLabels[furtkaPosition]}`,
+    );
+  }
 
   const previewInfoItems = allSelected
     ? [
         { label: "Wysokość", value: `${heightCm} cm` },
         { label: "Panele", value: `${previewPanelCount} szt.` },
-        { label: "Materiał", value: `Beton · ${panel!.name}` },
+        { label: "Materiał", value: `Beton · ${variant!.name}` },
         { label: "Kolor", value: color!.name },
         {
-          label: "Furtka",
-          value: gateEnabled ? `Tak · ${gatePositionLabel}` : "Nie",
+          label: "Wejścia",
+          value: openingLabels.length > 0 ? openingLabels.join(" · ") : "Brak",
         },
       ]
     : [];
 
-  function handleBackgroundUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      alert("Dozwolone formaty: JPG, PNG, WebP.");
-      return;
-    }
-    if (file.size > MAX_BG_SIZE) {
-      alert("Plik jest za duży. Maksymalny rozmiar to 5 MB.");
-      return;
-    }
-
-    setBackgroundImage(URL.createObjectURL(file));
-  }
-
   return (
     <div
       ref={previewRootRef}
-      className="relative flex h-full min-h-[420px] flex-col bg-[#f0f0f0]"
+      className="relative flex min-h-[420px] w-full flex-1 flex-col bg-[#f0f0f0] max-lg:min-h-0"
     >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="hidden"
-        onChange={handleBackgroundUpload}
-      />
-
-      {/* View controls */}
-      <div className="absolute right-4 top-4 z-20 flex gap-2">
+      <div className="absolute right-4 top-4 z-20 hidden gap-2 lg:flex">
         <button
           type="button"
           aria-label={sidebarOpen ? "Ukryj panel opcji" : "Pokaż panel opcji"}
@@ -543,35 +721,19 @@ export function FencePreview({ catalog, selection }: Props) {
         >
           <RotateCcw className="h-4 w-4" />
         </button>
-        <button
-          type="button"
-          aria-label="Zmień zdjęcie w tle"
-          title="Zmień zdjęcie w tle"
-          onClick={() => fileInputRef.current?.click()}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e5e7eb] bg-white/92 text-[#6b7280] shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-[#303638]"
-        >
-          <ImagePlus className="h-4 w-4" />
-        </button>
-        {hasUserBackground && (
-          <button
-            type="button"
-            aria-label="Przywróć domyślną fasadę"
-            title="Przywróć domyślną fasadę"
-            onClick={clearBackgroundImage}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e5e7eb] bg-white/92 text-[#6b7280] shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-[#303638]"
-          >
-            <ImageOff className="h-4 w-4" />
-          </button>
-        )}
+      </div>
+
+      <div className="lg:hidden">
+        <PreviewControlsBar className="left-3 right-auto top-3" accent />
       </div>
 
       {/* Scene */}
       <div
         ref={sceneRef}
-        className="relative flex flex-1 overflow-hidden rounded-none lg:rounded-none"
+        className="relative flex flex-1 overflow-hidden rounded-none max-lg:min-h-0"
         onClick={() => setFenceSelected(false)}
         style={{
-          minHeight: 480,
+          minHeight: isLgUp ? 480 : undefined,
           backgroundImage: `url(${sceneBackgroundUrl})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
@@ -579,19 +741,19 @@ export function FencePreview({ catalog, selection }: Props) {
       >
         <div className="pointer-events-none absolute inset-0 bg-white/5" />
 
-        {allSelected && <PreviewInfoBar items={previewInfoItems} />}
+        {allSelected && isLgUp && <PreviewInfoBar items={previewInfoItems} />}
 
         {/* Fence SVG (draggable / resizable, tight bounds like Drutex) */}
         {svgMarkup && contentBounds ? (
           <div
             className="absolute left-1/2 z-10"
             style={{
-              bottom: `${FENCE_SCENE_BOTTOM_PERCENT}%`,
+              bottom: `${sceneBottomPercent}%`,
               transform: `translate(calc(-50% + ${fenceTransform.x}px), ${fenceTransform.y}px) scale(${fenceTransform.scale})`,
               transformOrigin: "center bottom",
             }}
           >
-            {showFenceHint && !fenceSelected && (
+            {showFenceHint && !fenceSelected && isLgUp && (
               <FenceInteractionHint inverseScale={1 / fenceTransform.scale} />
             )}
             <div
@@ -628,10 +790,10 @@ export function FencePreview({ catalog, selection }: Props) {
                 />
               </div>
 
-              {(fenceSelected || showFenceHint) && (
+              {(fenceSelected || (showFenceHint && isLgUp)) && (
                 <div
                   className={`pointer-events-none absolute inset-0 z-20 border-2 border-dashed border-[#ff3131] ${
-                    showFenceHint && !fenceSelected ? "animate-pulse" : ""
+                    showFenceHint && !fenceSelected && isLgUp ? "animate-pulse" : ""
                   }`}
                   aria-hidden
                 />
@@ -656,15 +818,15 @@ export function FencePreview({ catalog, selection }: Props) {
           </div>
         )}
 
-        {fenceSelected && svgMarkup && (
+        {fenceSelected && svgMarkup && isLgUp && (
           <p className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-md border border-[#e5e7eb] bg-white/92 px-3 py-1 text-[10px] text-[#6b7280] shadow-sm backdrop-blur-sm">
-            Przeciągnij aby przesunąć · rogi: skala · boki: więcej paneli · scroll: zoom
+            Przeciągnij aby przesunąć · boki: panele · rogi: skala · scroll: zoom
           </p>
         )}
       </div>
 
       {/* Bottom info bar */}
-      {allSelected && (
+      {allSelected && isLgUp && (
         <div className="flex items-center gap-4 border-t border-[#e8e8e8] bg-white px-6 py-3">
           <div className="flex items-center gap-2">
             <span
@@ -672,8 +834,8 @@ export function FencePreview({ catalog, selection }: Props) {
               style={{ backgroundColor: color!.hex }}
             />
             <span className="text-xs font-semibold text-[#303638]">
-              {panel!.name} · {height!.label} · {color!.name}
-              {gateEnabled ? " · Furtka" : ""}
+              {variant!.name} · {height!.label} · {color!.name}
+              {openingLabels.length > 0 ? ` · ${openingLabels.join(" · ")}` : ""}
             </span>
           </div>
           <span className="ml-auto text-[10px] uppercase tracking-wider text-[#aaa]">
