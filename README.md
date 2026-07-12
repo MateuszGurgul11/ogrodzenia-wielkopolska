@@ -101,11 +101,19 @@ Szczegóły: [`backend/README.md`](backend/README.md)
 
 Pola opcjonalne: `description`, `previewAsset` (URL zdjęcia).
 
-## Produkcja
+## Produkcja (Vercel + Render)
+
+Szczegółowa instrukcja deployu z komendami: **[`DEPLOYMENT.md`](DEPLOYMENT.md)**
+
+| Warstwa | Hosting | Repo GitHub |
+|---------|---------|-------------|
+| Frontend | [Vercel](https://vercel.com) | `ogrodzenia-wielkopolska` → gałąź `main` |
+| Backend API | [Render](https://render.com) | `ogrodzenia-wielkopolska-backend` → gałąź `master` |
+
+Szybki test po deployu:
 
 ```bash
-npm run build && npm start
-# Backend: uvicorn app.main:app --host 0.0.0.0 --port 8000
+curl -s https://TWOJ-API.onrender.com/api/health
 ```
 
-Ustaw `NEXT_PUBLIC_API_URL` na URL produkcyjnego API.
+Na Vercel ustaw `NEXT_PUBLIC_API_URL` na URL API z Rendera i zrób redeploy.
