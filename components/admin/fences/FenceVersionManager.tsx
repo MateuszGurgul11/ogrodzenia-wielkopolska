@@ -1,12 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { FenceBlock, FenceStackVersion, FenceVariant } from "@/lib/types";
 import {
-  MAX_STACK_VERSIONS,
   createDefaultStackVersion,
   getStackVersions,
   patchStackVersion,
@@ -19,6 +20,7 @@ type Props = {
   variant: FenceVariant;
   blocksCatalog: FenceBlock[];
   previewHeightM: number;
+  referenceHeightM: number;
   activeVersionId: string;
   onActiveVersionChange: (versionId: string) => void;
   onVariantChange: (variant: FenceVariant) => void;
@@ -30,6 +32,7 @@ export function FenceVersionManager({
   variant,
   blocksCatalog,
   previewHeightM,
+  referenceHeightM,
   activeVersionId,
   onActiveVersionChange,
   onVariantChange,
@@ -48,7 +51,6 @@ export function FenceVersionManager({
   }
 
   function handleAddVersion() {
-    if (versions.length >= MAX_STACK_VERSIONS) return;
     const source = versions[versions.length - 1];
     const next = createDefaultStackVersion(versions.length, source);
     const stackVersions = [...versions, next];
@@ -77,6 +79,38 @@ export function FenceVersionManager({
           .join(", ")
       : null;
 
+  const [postHeightInput, setPostHeightInput] = useState("");
+
+  useEffect(() => {
+    const offset = activeVersion.postHeightOffsetCm;
+    setPostHeightInput(
+      offset == null
+        ? ""
+        : ((referenceHeightM * 100 + offset) / 100)
+            .toString()
+            .replace(".", ","),
+    );
+  }, [activeVersion.id, activeVersion.postHeightOffsetCm, referenceHeightM]);
+
+  function handlePostHeightChange(raw: string) {
+    setPostHeightInput(raw);
+    if (raw.trim() === "") {
+      updateVersion(activeVersion.id, {
+        postHeightOffsetCm: null,
+        postHeightCm: null,
+      });
+      return;
+    }
+    const parsedM = Number(raw.replace(",", "."));
+    if (!Number.isFinite(parsedM) || parsedM <= 0) return;
+    const offset = Math.round(parsedM * 100 - referenceHeightM * 100);
+    if (offset < -150 || offset > 150) return;
+    updateVersion(activeVersion.id, {
+      postHeightOffsetCm: offset,
+      postHeightCm: null,
+    });
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -104,17 +138,15 @@ export function FenceVersionManager({
             {version.name}
           </button>
         ))}
-        {versions.length < MAX_STACK_VERSIONS && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleAddVersion}
-          >
-            <Plus className="mr-1 h-4 w-4" />
-            Dodaj wariant
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleAddVersion}
+        >
+          <Plus className="mr-1 h-4 w-4" />
+          Dodaj wariant
+        </Button>
       </div>
 
       {activeVersion && (
@@ -167,6 +199,30 @@ export function FenceVersionManager({
             onAddBlock={onAddBlock}
             onOpenAzurowosc={() => onOpenAzurowosc(activeVersion.id)}
           />
+
+          <div className="space-y-1.5 rounded-lg border bg-background p-3">
+            <Label>
+              Wysokość słupka przy płocie{" "}
+              {referenceHeightM.toString().replace(".", ",")} m (m)
+            </Label>
+            <Input
+              type="text"
+              inputMode="decimal"
+              placeholder="Auto (jak panele)"
+              value={postHeightInput}
+              onChange={(e) => handlePostHeightChange(e.target.value)}
+            />
+            <p className="text-muted-foreground text-xs">
+              Puste = słupek równy z płotem. Wpisz np. 1,75 — przy płocie{" "}
+              {referenceHeightM.toString().replace(".", ",")} m słupek będzie
+              miał 1,75 m (panele z falą wystają ponad słupek). Przy innych
+              wysokościach płotu różnica zostaje zachowana
+              {activeVersion.postHeightOffsetCm != null &&
+                ` (obecnie ${activeVersion.postHeightOffsetCm > 0 ? "+" : ""}${activeVersion.postHeightOffsetCm} cm)`}
+              . Ustawienie dotyczy tylko tej wersji układu paneli (
+              {activeVersion.name}).
+            </p>
+          </div>
         </div>
       )}
     </div>

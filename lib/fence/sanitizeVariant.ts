@@ -46,12 +46,6 @@ function cleanStackVersion(version: FenceStackVersion): FenceStackVersion {
     next.azurowoscOptions = [];
   }
 
-  return next;
-}
-
-// Backend zapisuje przez merge — pole trzeba jawnie wysłać jako null,
-// żeby wyczyścić starą wartość (pominięcie pola zostawia ją w bazie).
-function dropInvalidOptionalNumbers(next: FenceVariant): void {
   if (
     next.postHeightCm == null ||
     Number.isNaN(next.postHeightCm) ||
@@ -69,6 +63,17 @@ function dropInvalidOptionalNumbers(next: FenceVariant): void {
   ) {
     next.postHeightOffsetCm = null;
   }
+
+  return next;
+}
+
+// Backend zapisuje przez merge — pole trzeba jawnie wysłać jako null,
+// żeby wyczyścić starą wartość (pominięcie pola zostawia ją w bazie).
+function dropInvalidOptionalNumbers(next: FenceVariant): void {
+  // postHeightCm/postHeightOffsetCm żyją teraz per FenceStackVersion (cleanStackVersion);
+  // zerujemy przestarzałe pola na wariancie, żeby nie zostawić martwych wartości w bazie.
+  next.postHeightCm = null;
+  next.postHeightOffsetCm = null;
 
   if (
     next.azurowoscDesignHeightM == null ||

@@ -209,32 +209,6 @@ export default function AdminFenceEditorPage() {
     return max > 0 ? max : 2;
   }, [heights, variant?.heightIds]);
 
-  const [postHeightInput, setPostHeightInput] = useState("");
-
-  useEffect(() => {
-    const offset = variant?.postHeightOffsetCm;
-    setPostHeightInput(
-      offset == null
-        ? ""
-        : ((referenceHeightM * 100 + offset) / 100)
-            .toString()
-            .replace(".", ","),
-    );
-  }, [variant?.postHeightOffsetCm, referenceHeightM]);
-
-  function handlePostHeightChange(raw: string) {
-    setPostHeightInput(raw);
-    if (raw.trim() === "") {
-      markVariantDirty({ postHeightOffsetCm: null, postHeightCm: null });
-      return;
-    }
-    const parsedM = Number(raw.replace(",", "."));
-    if (!Number.isFinite(parsedM) || parsedM <= 0) return;
-    const offset = Math.round(parsedM * 100 - referenceHeightM * 100);
-    if (offset < -150 || offset > 150) return;
-    markVariantDirty({ postHeightOffsetCm: offset, postHeightCm: null });
-  }
-
   const hasUnsavedChanges = variantDirty || pricesDirty;
 
   async function persistVariant(next: FenceVariant): Promise<boolean> {
@@ -422,6 +396,7 @@ export default function AdminFenceEditorPage() {
               variant={variant}
               blocksCatalog={blocks}
               previewHeightM={previewHeightM}
+              referenceHeightM={referenceHeightM}
               activeVersionId={activeVersionId}
               onActiveVersionChange={setActiveVersionId}
               onVariantChange={handleVariantChange}
@@ -504,28 +479,6 @@ export default function AdminFenceEditorPage() {
                 })
               }
             />
-          </div>
-          <div className="space-y-1.5">
-            <Label>
-              Wysokość słupka przy płocie{" "}
-              {referenceHeightM.toString().replace(".", ",")} m (m)
-            </Label>
-            <Input
-              type="text"
-              inputMode="decimal"
-              placeholder="Auto (jak panele)"
-              value={postHeightInput}
-              onChange={(e) => handlePostHeightChange(e.target.value)}
-            />
-            <p className="text-muted-foreground text-xs">
-              Puste = słupek równy z płotem. Wpisz np. 1,75 — przy płocie{" "}
-              {referenceHeightM.toString().replace(".", ",")} m słupek będzie
-              miał 1,75 m (panele z falą wystają ponad słupek). Przy innych
-              wysokościach płotu różnica zostaje zachowana
-              {variant.postHeightOffsetCm != null &&
-                ` (obecnie ${variant.postHeightOffsetCm > 0 ? "+" : ""}${variant.postHeightOffsetCm} cm)`}
-              .
-            </p>
           </div>
           <div className="space-y-2">
             <Label>Dozwolone wysokości</Label>

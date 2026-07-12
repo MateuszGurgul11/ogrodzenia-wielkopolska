@@ -167,6 +167,8 @@ export const fenceStackVersionSchema = z.object({
   azurowoscEnabled: z.boolean(),
   azurowoscOptions: z.array(fenceAzurOptionSchema).nullable().optional(),
   azurowoscColorId: z.string().nullable().optional(),
+  postHeightCm: z.coerce.number().min(50).max(300).nullable().optional(),
+  postHeightOffsetCm: z.coerce.number().min(-150).max(150).nullable().optional(),
   sortOrder: z.coerce.number().int().min(0),
 });
 
@@ -177,7 +179,6 @@ export const fenceVariantSchema = z.object({
   stackVersions: z
     .array(fenceStackVersionSchema)
     .min(1, "Dodaj co najmniej jedną wersję układu")
-    .max(3, "Maksymalnie 3 wersje układu")
     .nullable()
     .optional(),
   azurowoscEnabled: z.boolean(),
@@ -186,7 +187,9 @@ export const fenceVariantSchema = z.object({
   azurowoscLayout: z.array(fenceAzurUnitSchema).nullable().optional(),
   azurowoscDesignHeightM: z.coerce.number().min(1).max(2.25).nullable().optional(),
   azurowoscColorId: z.string().nullable().optional(),
+  /** @deprecated Przeniesione do fenceStackVersionSchema.postHeightOffsetCm */
   postHeightCm: z.coerce.number().min(50).max(300).nullable().optional(),
+  /** @deprecated Przeniesione do fenceStackVersionSchema.postHeightOffsetCm */
   postHeightOffsetCm: z.coerce.number().min(-150).max(150).nullable().optional(),
   heightIds: z.array(z.string()),
   sectionWidthCm: z.coerce.number().min(50).max(400).default(200),

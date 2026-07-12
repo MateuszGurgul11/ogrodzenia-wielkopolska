@@ -11,6 +11,7 @@ import {
   resolveFenceVariant,
   resolvePostHeightCm,
 } from "@/lib/fence/resolveStack";
+import { resolveStackVersion } from "@/lib/fence/stackVersions";
 import type {
   CatalogCollections,
   ConfiguratorSelection,
@@ -127,6 +128,9 @@ export function buildConfigurationSvg(
     postTextureUrl,
     openingTextureUrl,
     stackUnits,
-    postHeightCm: resolvePostHeightCm(variant, height.valueM),
+    postHeightCm: resolvePostHeightCm(
+      resolveStackVersion(variant, selection.stackVersionId),
+      height.valueM,
+    ),
   });
 }

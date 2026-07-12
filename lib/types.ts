@@ -83,6 +83,14 @@ export type FenceStackVersion = {
   azurowoscEnabled: boolean;
   azurowoscOptions?: FenceAzurOption[] | null;
   azurowoscColorId?: string | null;
+  /** @deprecated Użyj postHeightOffsetCm. Całkowita wysokość słupka w cm. */
+  postHeightCm?: number | null;
+  /**
+   * Różnica wysokości słupka względem nominalnej wysokości płotu (cm).
+   * Ujemna = słupek niższy niż płot (np. -25 przy panelach z falą),
+   * dodatnia = słupek wystaje ponad panele. Brak = auto.
+   */
+  postHeightOffsetCm?: number | null;
   sortOrder: number;
 };
 
@@ -106,12 +114,11 @@ export type FenceVariant = {
   azurowoscDesignHeightM?: number | null;
   /** Kolor użyty przy projektowaniu podglądu ażurowości. */
   azurowoscColorId?: string | null;
-  /** @deprecated Użyj postHeightOffsetCm. Całkowita wysokość słupka w cm. */
+  /** @deprecated Użyj postHeightOffsetCm w FenceStackVersion. Całkowita wysokość słupka w cm. */
   postHeightCm?: number | null;
   /**
+   * @deprecated Przeniesione na FenceStackVersion.postHeightOffsetCm (ustawiane per wariant paneli).
    * Różnica wysokości słupka względem nominalnej wysokości płotu (cm).
-   * Ujemna = słupek niższy niż płot (np. -25 przy panelach z falą),
-   * dodatnia = słupek wystaje ponad panele. Brak = auto.
    */
   postHeightOffsetCm?: number | null;
   heightIds: string[];

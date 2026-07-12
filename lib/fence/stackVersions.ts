@@ -1,9 +1,7 @@
 import type { FenceStackSlot, FenceStackVersion, FenceVariant } from "@/lib/types";
 import { ensureSlotUids } from "@/lib/fence/slotUid";
 
-export const MAX_STACK_VERSIONS = 3;
-
-const VERSION_LETTERS = ["A", "B", "C"] as const;
+const VERSION_LETTERS = ["A", "B", "C", "D", "E", "F"] as const;
 
 /** mirrorsMain = tylko panele główne (bez osobnego slotu once). */
 function collapseMirrorsMainStack(stack: FenceStackSlot[]): FenceStackSlot[] {
@@ -37,6 +35,8 @@ export function createDefaultStackVersion(
       ? JSON.parse(JSON.stringify(source.azurowoscOptions))
       : [],
     azurowoscColorId: source?.azurowoscColorId ?? null,
+    postHeightCm: source?.postHeightCm ?? null,
+    postHeightOffsetCm: source?.postHeightOffsetCm ?? null,
     sortOrder: index,
   };
 }
@@ -54,6 +54,8 @@ export function getStackVersions(variant: FenceVariant): FenceStackVersion[] {
       azurowoscEnabled: variant.azurowoscEnabled,
       azurowoscOptions: variant.azurowoscOptions ?? [],
       azurowoscColorId: variant.azurowoscColorId ?? null,
+      postHeightCm: variant.postHeightCm ?? null,
+      postHeightOffsetCm: variant.postHeightOffsetCm ?? null,
       sortOrder: 0,
     },
   ];
@@ -84,6 +86,8 @@ export function mirrorLegacyFromFirstVersion(
     azurowoscEnabled: first.azurowoscEnabled,
     azurowoscOptions: first.azurowoscOptions ?? [],
     azurowoscColorId: first.azurowoscColorId ?? null,
+    postHeightCm: first.postHeightCm ?? null,
+    postHeightOffsetCm: first.postHeightOffsetCm ?? null,
   };
 }
 
@@ -111,6 +115,8 @@ export function applyStackVersionToVariant(
     azurowoscOptions: version.azurowoscOptions ?? [],
     azurowoscColorId: version.azurowoscColorId ?? null,
     azurowoscLayout: null,
+    postHeightCm: version.postHeightCm ?? null,
+    postHeightOffsetCm: version.postHeightOffsetCm ?? null,
   };
 }
 

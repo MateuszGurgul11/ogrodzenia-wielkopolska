@@ -11,6 +11,7 @@ import {
   resolveFenceVariant,
   resolvePostHeightCm,
 } from "@/lib/fence/resolveStack";
+import { resolveStackVersion } from "@/lib/fence/stackVersions";
 import { PreviewControlsBar } from "./PreviewControlsBar";
 
 type Props = {
@@ -91,7 +92,10 @@ export function OpeningsOnlyPreview({ catalog }: Props) {
       transparent: true,
       openingTextureUrl,
       postHeightCm: variant
-        ? resolvePostHeightCm(variant, height.valueM)
+        ? resolvePostHeightCm(
+            resolveStackVersion(variant, selection.stackVersionId),
+            height.valueM,
+          )
         : undefined,
     });
   }, [
@@ -100,6 +104,7 @@ export function OpeningsOnlyPreview({ catalog }: Props) {
     color,
     catalog,
     selection.fenceVariantId,
+    selection.stackVersionId,
     hasDrivewayGate,
     hasWicket,
     bramaElementId,

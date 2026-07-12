@@ -83,15 +83,15 @@ export function getAzurGapOptions(version: FenceStackVersion): number[] {
     .sort((a, b) => a - b);
 }
 
-/** Efektywna wysokość słupka (cm) dla danej wysokości płotu. */
+/** Efektywna wysokość słupka (cm) dla danej wysokości płotu i wersji układu paneli. */
 export function resolvePostHeightCm(
-  variant: FenceVariant,
+  version: FenceStackVersion,
   heightM: number,
 ): number | undefined {
-  if (variant.postHeightOffsetCm != null) {
-    return Math.max(10, Math.round(heightM * 100) + variant.postHeightOffsetCm);
+  if (version.postHeightOffsetCm != null) {
+    return Math.max(10, Math.round(heightM * 100) + version.postHeightOffsetCm);
   }
-  return variant.postHeightCm ?? undefined;
+  return version.postHeightCm ?? undefined;
 }
 
 /**

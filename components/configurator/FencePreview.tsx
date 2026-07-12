@@ -34,6 +34,7 @@ import {
   resolveFenceVariant,
   resolvePostHeightCm,
 } from "@/lib/fence/resolveStack";
+import { resolveStackVersion } from "@/lib/fence/stackVersions";
 import { getWicketWidthCm } from "@/lib/pricing/variant-prices";
 import { PreviewControlsBar } from "./PreviewControlsBar";
 import { useIsLgUp, useIsMobileLandscape } from "@/lib/hooks/use-media-query";
@@ -602,7 +603,10 @@ export function FencePreview({ catalog, selection }: Props) {
       postTextureUrl,
       openingTextureUrl,
       stackUnits,
-      postHeightCm: resolvePostHeightCm(variant, height.valueM),
+      postHeightCm: resolvePostHeightCm(
+        resolveStackVersion(variant, selection.stackVersionId),
+        height.valueM,
+      ),
     });
   }, [
     post,
@@ -619,8 +623,6 @@ export function FencePreview({ catalog, selection }: Props) {
     previewPanelCount,
     furtkaEnabled,
     furtkaElementId,
-    variant?.postHeightCm,
-    variant?.postHeightOffsetCm,
   ]);
 
   const viewWidth = getViewWidth(previewPanelCount);
@@ -631,9 +633,12 @@ export function FencePreview({ catalog, selection }: Props) {
       heightM: height.valueM,
       postWidthCm: post.widthCm,
       panelCount: previewPanelCount,
-      postHeightCm: resolvePostHeightCm(variant, height.valueM),
+      postHeightCm: resolvePostHeightCm(
+        resolveStackVersion(variant, selection.stackVersionId),
+        height.valueM,
+      ),
     });
-  }, [post, height, variant, previewPanelCount]);
+  }, [post, height, variant, previewPanelCount, selection.stackVersionId]);
 
   const fenceDisplayWidth =
     sceneWidth > 0
