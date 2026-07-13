@@ -26,7 +26,7 @@ export function ConfiguratorTabs({ active, onChange }: Props) {
   const tabs = getVisibleConfiguratorTabs(scope);
 
   return (
-    <div className="scrollbar-dark flex flex-nowrap gap-0.5 overflow-x-auto border-b border-[#2a2a2a] px-2 pb-0 pt-3 max-lg:landscape:pt-1.5 sm:gap-1 sm:px-4">
+    <div className="scrollbar-dark flex flex-nowrap gap-0.5 overflow-x-auto border-b border-cfg-sidebar-border px-2 pb-0 pt-3 max-lg:landscape:pt-1.5 sm:gap-1 sm:px-4">
       {tabs.map((id) => {
         const { label, icon: Icon } = TAB_META[id];
         const isActive = active === id;
@@ -38,8 +38,8 @@ export function ConfiguratorTabs({ active, onChange }: Props) {
             className={cn(
               "flex shrink-0 flex-col items-center gap-1.5 rounded-t-lg px-2.5 py-2.5 transition-all max-lg:min-h-[44px] max-lg:flex-row max-lg:gap-1.5 max-lg:landscape:min-h-0 max-lg:landscape:flex-col max-lg:landscape:py-1.5 max-lg:px-3 sm:px-3",
               isActive
-                ? "bg-[#2a2a2a] text-[#ff3131]"
-                : "text-[#666] hover:bg-[#222] hover:text-[#999]",
+                ? "bg-cfg-sidebar-tab-active text-[#ff3131]"
+                : "text-cfg-sidebar-muted hover:bg-cfg-sidebar-surface hover:text-white",
             )}
           >
             <Icon className={cn("h-4 w-4 shrink-0", isActive && "text-[#ff3131]")} />

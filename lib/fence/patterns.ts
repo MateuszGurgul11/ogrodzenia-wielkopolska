@@ -19,6 +19,11 @@ export const PANEL_PRESET_KEYS = [
   "tile-offset",
   "lamelle-dense",
   "stone-split",
+  "brick-small",
+  "sandstone",
+  "sandstone-arch",
+  "fieldstone",
+  "fieldstone-cap",
   "clapboard-wide",
   "wave-dunes",
   "concrete-smooth",
@@ -50,7 +55,12 @@ export const PANEL_PRESETS: {
   { key: "plank-smooth", label: "Deska pełna — gładka", role: "standard" },
   { key: "tile-offset", label: "Cegiełki przesuwane", role: "standard" },
   { key: "lamelle-dense", label: "Lamele poziome — gęste", role: "standard" },
-  { key: "stone-split", label: "Kamień łupany", role: "standard" },
+  { key: "stone-split", label: "Mur", role: "standard" },
+  { key: "brick-small", label: "Cegiełka", role: "standard" },
+  { key: "sandstone", label: "Piaskowiec", role: "standard" },
+  { key: "sandstone-arch", label: "Piaskowiec łuk", role: "cap" },
+  { key: "fieldstone", label: "Kamień", role: "standard" },
+  { key: "fieldstone-cap", label: "Kamień górny", role: "cap" },
   { key: "clapboard-wide", label: "Deska pozioma — szeroka", role: "standard" },
   { key: "wave-dunes", label: "Fala piaskowa 3D", role: "standard" },
   {
@@ -99,6 +109,8 @@ export function isArchPanel(
   role?: "standard" | "cap",
 ): boolean {
   if (patternKey === "concrete-arch") return true;
+  if (patternKey === "sandstone-arch") return true;
+  if (patternKey === "fieldstone-cap") return true;
   if (patternKey === "concrete-standard") return false;
   return role === "cap";
 }

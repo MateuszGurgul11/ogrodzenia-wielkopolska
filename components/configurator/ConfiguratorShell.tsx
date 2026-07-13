@@ -37,7 +37,7 @@ function DesktopSidebar({
   return (
     <aside
       className={cn(
-        "hidden shrink-0 flex-col bg-[#1a1a1a] transition-all duration-300 ease-out lg:flex lg:border-r lg:border-[#2a2a2a]",
+        "hidden shrink-0 flex-col bg-cfg-sidebar transition-all duration-300 ease-out lg:flex lg:border-r lg:border-cfg-sidebar-border",
         sidebarOpen
           ? "lg:w-[400px] xl:w-[420px]"
           : "w-0 overflow-hidden border-r-0 lg:w-0",
@@ -90,7 +90,7 @@ function MobileOptionsDrawer({
       )}
       <aside
         className={cn(
-          "fixed z-50 flex max-h-[100dvh] flex-col overflow-hidden bg-[#1a1a1a] shadow-2xl transition-transform duration-300 ease-out lg:hidden",
+          "fixed z-50 flex max-h-[100dvh] flex-col overflow-hidden bg-cfg-sidebar shadow-2xl transition-transform duration-300 ease-out lg:hidden",
           "inset-y-0 left-0 w-full max-lg:portrait:w-[min(400px,calc(100%-3rem))]",
           "max-lg:landscape:inset-0 max-lg:landscape:w-full",
           sidebarOpen
@@ -99,11 +99,11 @@ function MobileOptionsDrawer({
         )}
         aria-hidden={!sidebarOpen}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#2a2a2a] px-4 py-3 max-lg:landscape:py-2">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-cfg-sidebar-border px-4 py-3 max-lg:landscape:py-2">
           <button
             type="button"
             onClick={handleResetScope}
-            className="shrink-0 font-semibold uppercase tracking-wider text-[#888] underline-offset-2 transition-colors hover:text-[#ff3131] hover:underline"
+            className="shrink-0 font-semibold uppercase tracking-wider text-cfg-sidebar-subtle underline-offset-2 transition-colors hover:text-[#ff3131] hover:underline"
           >
             Zmień zakres
           </button>
@@ -113,7 +113,7 @@ function MobileOptionsDrawer({
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-[#888] transition-colors hover:bg-[#222] hover:text-white"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-cfg-sidebar-subtle transition-colors hover:bg-cfg-sidebar-surface hover:text-white"
             aria-label="Wróć do podglądu"
           >
             <X className="h-5 w-5" />

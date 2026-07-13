@@ -45,8 +45,8 @@ export function BackgroundPicker() {
               className={cn(
                 "group relative aspect-[4/3] overflow-hidden rounded-lg border-2 transition-all",
                 selected
-                  ? "border-[#ff3131] ring-2 ring-[#ff3131]/35 ring-offset-2 ring-offset-[#1a1a1a]"
-                  : "border-[#333] hover:border-[#555]",
+                  ? "border-[#ff3131] ring-2 ring-[#ff3131]/35 ring-offset-2 ring-offset-cfg-sidebar"
+                  : "border-cfg-sidebar-surface-border hover:border-cfg-sidebar-border",
               )}
             >
               <Image
@@ -70,7 +70,7 @@ export function BackgroundPicker() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="group relative aspect-[4/3] overflow-hidden rounded-lg border-2 border-[#ff3131] ring-2 ring-[#ff3131]/35 ring-offset-2 ring-offset-[#1a1a1a]"
+            className="group relative aspect-[4/3] overflow-hidden rounded-lg border-2 border-[#ff3131] ring-2 ring-[#ff3131]/35 ring-offset-2 ring-offset-cfg-sidebar"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -97,7 +97,7 @@ export function BackgroundPicker() {
         Prześlij zdjęcie własnego domu
       </button>
 
-      <p className="text-[10px] leading-relaxed text-[#666]">
+      <p className="text-[10px] leading-relaxed text-cfg-sidebar-muted">
         JPG, PNG lub WebP do 5 MB. Zdjęcie działki lub posesji pomoże lepiej
         ocenić wygląd ogrodzenia.
       </p>

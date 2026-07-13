@@ -8,7 +8,7 @@ import { ColorPaletteManager } from "@/components/admin/fences/ColorPaletteManag
 import { FenceBlockManager } from "@/components/admin/fences/FenceBlockManager";
 import { FencePostManager } from "@/components/admin/fences/FencePostManager";
 import { FencePostMatrix } from "@/components/admin/fences/FencePostMatrix";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -23,13 +23,15 @@ import {
   fetchAllForAdmin,
   isApiConfigured,
 } from "@/lib/api/client";
-import type { FenceVariant, Post } from "@/lib/types";
+import type { FenceBlock, FenceVariant, Post } from "@/lib/types";
 import { getStackVersions, createDefaultStackVersion } from "@/lib/fence/stackVersions";
+import { cn } from "@/lib/utils";
 
 export default function AdminFencesPage() {
   const { user, getToken } = useAdminAuth();
   const [variants, setVariants] = useState<FenceVariant[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [blocks, setBlocks] = useState<FenceBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -45,12 +47,14 @@ export default function AdminFencesPage() {
     setError(null);
     try {
       const token = await getToken();
-      const [v, p] = await Promise.all([
+      const [v, p, b] = await Promise.all([
         fetchAllForAdmin<FenceVariant>("fenceVariants", token),
         fetchAllForAdmin<Post>("posts", token),
+        fetchAllForAdmin<FenceBlock>("fenceBlocks", token),
       ]);
       setVariants(v);
       setPosts(p);
+      setBlocks(b);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Błąd ładowania");
     } finally {
@@ -64,10 +68,17 @@ export default function AdminFencesPage() {
 
   async function handleCreateVariant() {
     if (!canManage || posts.length === 0) return;
+    const defaultBlock =
+      blocks.find((b) => b.active && b.role === "standard") ?? blocks.find((b) => b.active);
+    if (!defaultBlock) {
+      setError("Dodaj najpierw co najmniej jeden panel główny w sekcji Panele.");
+      return;
+    }
     setCreating(true);
+    setError(null);
     try {
       const token = await getToken();
-      const defaultVersion = createDefaultStackVersion(0);
+      const defaultVersion = createDefaultStackVersion(0, undefined, defaultBlock.id);
       const created = await createEntity(
         "fenceVariants",
         {
@@ -115,14 +126,25 @@ export default function AdminFencesPage() {
             Warianty, układ paneli, macierze kolorów i cen.
           </p>
         </div>
-        <Button onClick={handleCreateVariant} disabled={!canManage || creating}>
-          {creating ? (
-            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="mr-1 h-4 w-4" />
-          )}
-          Nowy wariant
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={handleCreateVariant}
+            disabled={!canManage || creating || posts.length === 0}
+          >
+            {creating ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="mr-1 h-4 w-4" />
+            )}
+            Nowy wariant
+          </Button>
+          <Link
+            href="/admin/fences/gallery"
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            Galeria modeli
+          </Link>
+        </div>
       </div>
 
       {error && (

@@ -68,7 +68,7 @@ function countAzurPanels(
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[#666]">
+    <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-cfg-sidebar-muted">
       {children}
     </p>
   );
@@ -93,7 +93,7 @@ function ModelCard({
         "flex w-full items-center gap-3 rounded-lg border px-3 py-3 text-left transition-all",
         selected
           ? "border-[#ff3131] bg-[#2a1515]"
-          : "border-[#333] bg-[#222] hover:border-[#444] hover:bg-[#282828]",
+          : "border-cfg-sidebar-surface-border bg-cfg-sidebar-surface hover:border-cfg-sidebar-border hover:bg-cfg-sidebar-surface-hover",
       )}
     >
       <div
@@ -101,7 +101,7 @@ function ModelCard({
           "flex h-5 w-5 shrink-0 items-center justify-center rounded border",
           selected
             ? "border-[#ff3131] bg-[#ff3131]"
-            : "border-[#555] bg-transparent",
+            : "border-cfg-sidebar-border bg-transparent",
         )}
       >
         {selected && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
@@ -115,7 +115,7 @@ function ModelCard({
         >
           {title}
         </p>
-        <p className="text-[11px] text-[#666]">{subtitle}</p>
+        <p className="text-[11px] text-cfg-sidebar-muted">{subtitle}</p>
       </div>
     </button>
   );
@@ -158,7 +158,7 @@ function OpeningPositionPicker({
               "rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition-all",
               value === pos
                 ? "border-[#ff3131] bg-[#2a1515] text-white"
-                : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
+                : "border-cfg-sidebar-surface-border bg-cfg-sidebar-surface text-cfg-sidebar-subtle hover:border-cfg-sidebar-border",
             )}
           >
             {labels[pos]}
@@ -332,11 +332,11 @@ export function OptionSidebar({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="hidden border-b border-[#2a2a2a] px-5 py-4 lg:block">
+      <div className="hidden border-b border-cfg-sidebar-border px-5 py-4 lg:block">
         <h1 className="font-heading text-lg font-bold text-white max-lg:text-base">
           Konfigurator Ogrodzenia
         </h1>
-        <p className="mt-0.5 text-[11px] text-[#666]">
+        <p className="mt-0.5 text-[11px] text-cfg-sidebar-muted">
           Seria Betonowa | Wielkopolska
         </p>
       </div>
@@ -402,7 +402,7 @@ export function OptionSidebar({
                         "rounded-lg border px-3 py-2.5 text-sm font-semibold transition-all",
                         selection.stackVersionId === version.id
                           ? "border-[#ff3131] bg-[#2a1515] text-white"
-                          : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
+                          : "border-cfg-sidebar-surface-border bg-cfg-sidebar-surface text-cfg-sidebar-subtle hover:border-cfg-sidebar-border",
                       )}
                     >
                       {version.name}
@@ -427,7 +427,7 @@ export function OptionSidebar({
                       "flex-1 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-all",
                       !selection.azurowoscEnabled
                         ? "border-[#ff3131] bg-[#2a1515] text-white"
-                        : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
+                        : "border-cfg-sidebar-surface-border bg-cfg-sidebar-surface text-cfg-sidebar-subtle hover:border-cfg-sidebar-border",
                     )}
                   >
                     Szczelne
@@ -460,7 +460,7 @@ export function OptionSidebar({
                           "flex-1 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-all",
                           active
                             ? "border-[#ff3131] bg-[#2a1515] text-white"
-                            : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
+                            : "border-cfg-sidebar-surface-border bg-cfg-sidebar-surface text-cfg-sidebar-subtle hover:border-cfg-sidebar-border",
                         )}
                       >
                         {gap === null ? "Z przerwami" : `Ażur ${gap} cm`}
@@ -486,20 +486,20 @@ export function OptionSidebar({
                     className={cn(
                       "h-12 w-12 rounded-lg border-2 transition-all",
                       selection.colorId === color.id
-                        ? "border-[#ff3131] ring-2 ring-[#ff3131]/40 ring-offset-2 ring-offset-[#1a1a1a] scale-110"
-                        : "border-[#444] hover:border-[#666]",
+                        ? "border-[#ff3131] ring-2 ring-[#ff3131]/40 ring-offset-2 ring-offset-cfg-sidebar scale-110"
+                        : "border-cfg-sidebar-border hover:border-white/40",
                     )}
                     style={{ backgroundColor: color.hex }}
                   />
                 ))}
               </div>
               {selectedColor && (
-                <p className="text-sm text-[#888]">
+                <p className="text-sm text-cfg-sidebar-subtle">
                   Wybrany:{" "}
                   <span className="font-semibold text-white">
                     {selectedColor.name}
                   </span>{" "}
-                  <span className="font-mono text-[#666]">{selectedColor.hex}</span>
+                  <span className="font-mono text-cfg-sidebar-muted">{selectedColor.hex}</span>
                 </p>
               )}
             </div>
@@ -509,12 +509,12 @@ export function OptionSidebar({
         {activeTab === "dimensions" && (
           <div>
             <SectionLabel>Szerokość podglądu — panele</SectionLabel>
-            <div className="mb-6 rounded-lg border border-[#333] bg-[#222] p-4">
+            <div className="mb-6 rounded-lg border border-cfg-sidebar-surface-border bg-cfg-sidebar-surface p-4">
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-semibold text-white">
                   {previewPanelCount} paneli
                 </span>
-                <span className="text-[10px] uppercase tracking-wider text-[#666]">
+                <span className="text-[10px] uppercase tracking-wider text-cfg-sidebar-muted">
                   {MIN_PREVIEW_PANELS}–{MAX_PREVIEW_PANELS}
                 </span>
               </div>
@@ -526,7 +526,7 @@ export function OptionSidebar({
                 onChange={(e) => setPreviewPanelCount(Number(e.target.value))}
                 className="w-full accent-[#ff3131]"
               />
-              <p className="mt-2 text-[10px] leading-relaxed text-[#666] max-lg:landscape:hidden">
+              <p className="mt-2 text-[10px] leading-relaxed text-cfg-sidebar-muted max-lg:landscape:hidden">
                 Przeciągnij boczne uchwyty płotu w podglądzie, aby szybko
                 dodać lub usunąć panele.
               </p>
@@ -543,13 +543,13 @@ export function OptionSidebar({
                     "rounded-lg border px-3 py-3 text-center transition-all",
                     selection.heightId === height.id
                       ? "border-[#ff3131] bg-[#2a1515] text-white"
-                      : "border-[#333] bg-[#222] text-[#888] hover:border-[#444]",
+                      : "border-cfg-sidebar-surface-border bg-cfg-sidebar-surface text-cfg-sidebar-subtle hover:border-cfg-sidebar-border",
                   )}
                 >
                   <span className="block font-heading text-lg font-bold">
                     {height.label}
                   </span>
-                  <span className="mt-0.5 block text-[10px] text-[#888]">
+                  <span className="mt-0.5 block text-[10px] text-cfg-sidebar-subtle">
                     {formatHeightMultiplier(height.priceMultiplier)}
                   </span>
                 </button>
@@ -581,12 +581,12 @@ export function OptionSidebar({
                 ))}
               </div>
               {bramaOptions.length === 0 && (
-                <p className="mt-2 text-[11px] text-[#888]">
+                <p className="mt-2 text-[11px] text-cfg-sidebar-subtle">
                   Brak aktywnych bram w katalogu — dodaj je w panelu admina.
                 </p>
               )}
               {bramaEnabled && (
-                <p className="mt-3 text-[11px] leading-relaxed text-[#888]">
+                <p className="mt-3 text-[11px] leading-relaxed text-cfg-sidebar-subtle">
                   Przejdź do zakładki <strong className="text-[#ccc]">Wycena</strong>,
                   zamknij obrys i przeciągnij uchwyty <strong className="text-[#ccc]">B1/B2</strong>{" "}
                   wzdłuż linii ogrodzenia, aby ustawić szerokość bramy.
@@ -616,12 +616,12 @@ export function OptionSidebar({
                 ))}
               </div>
               {furtkaOptions.length === 0 && (
-                <p className="mt-2 text-[11px] text-[#888]">
+                <p className="mt-2 text-[11px] text-cfg-sidebar-subtle">
                   Brak aktywnych furtek w katalogu — dodaj je w panelu admina.
                 </p>
               )}
               {furtkaEnabled && (
-                <p className="mt-3 text-[11px] leading-relaxed text-[#888]">
+                <p className="mt-3 text-[11px] leading-relaxed text-cfg-sidebar-subtle">
                   Na zakładce <strong className="text-[#ccc]">Wycena</strong> przeciągnij marker{" "}
                   <strong className="text-[#ccc]">F</strong> wzdłuż obrysu, aby wskazać miejsce
                   furtki (stała szerokość 1 panelu).
@@ -709,9 +709,9 @@ export function OptionSidebar({
             ].map(({ label, value }) => (
               <div
                 key={label}
-                className="flex items-center justify-between border-b border-[#2a2a2a] py-2.5"
+                className="flex items-center justify-between border-b border-cfg-sidebar-border py-2.5"
               >
-                <span className="text-[11px] uppercase tracking-wider text-[#666]">
+                <span className="text-[11px] uppercase tracking-wider text-cfg-sidebar-muted">
                   {label}
                 </span>
                 <span className="text-sm font-semibold text-white">
@@ -720,23 +720,23 @@ export function OptionSidebar({
               </div>
             ))}
             {selectedColor && (
-              <div className="flex items-center gap-3 rounded-lg bg-[#222] p-3">
+              <div className="flex items-center gap-3 rounded-lg bg-cfg-sidebar-surface p-3">
                 <span
-                  className="h-10 w-10 rounded-lg border border-[#444]"
+                  className="h-10 w-10 rounded-lg border border-cfg-sidebar-border"
                   style={{ backgroundColor: selectedColor.hex }}
                 />
                 <div>
                   <p className="text-sm font-semibold text-white">
                     {selectedColor.name}
                   </p>
-                  <p className="font-mono text-xs text-[#666]">
+                  <p className="font-mono text-xs text-cfg-sidebar-muted">
                     {selectedColor.hex}
                   </p>
                 </div>
               </div>
             )}
-            <div className="rounded-lg border border-[#333] bg-[#222] p-3">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#666]">
+            <div className="rounded-lg border border-cfg-sidebar-surface-border bg-cfg-sidebar-surface p-3">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-cfg-sidebar-muted">
                 Składniki ceny
               </p>
               <div className="space-y-1.5">
@@ -745,13 +745,13 @@ export function OptionSidebar({
                     key={`${row.label}-${index}`}
                     className="flex justify-between gap-2 text-[11px]"
                   >
-                    <span className="text-[#888]">{row.label}</span>
+                    <span className="text-cfg-sidebar-subtle">{row.label}</span>
                     {row.amount > 0 ? (
                       <span className="font-semibold text-white">
                         {Math.round(row.amount).toLocaleString("pl-PL")} PLN
                       </span>
                     ) : (
-                      <span className="text-[#666]">{row.value}</span>
+                      <span className="text-cfg-sidebar-muted">{row.value}</span>
                     )}
                   </div>
                 ))}
@@ -782,20 +782,20 @@ export function OptionSidebar({
         )}
       </div>
 
-      <div className="shrink-0 border-t border-[#2a2a2a] bg-[#161616] px-5 py-4 max-lg:landscape:px-4 max-lg:landscape:py-2">
+      <div className="shrink-0 border-t border-cfg-sidebar-border bg-cfg-sidebar-footer px-5 py-4 max-lg:landscape:px-4 max-lg:landscape:py-2">
         <div className="mb-3 max-lg:landscape:mb-2">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#666]">
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-cfg-sidebar-muted">
               Wycena orientacyjna
             </span>
             <span className="font-heading text-xl font-bold text-white max-lg:landscape:text-lg">
               {Math.round(quote.totalNet).toLocaleString("pl-PL")}{" "}
-              <span className="text-sm font-semibold text-[#888] max-lg:landscape:text-xs">
+              <span className="text-sm font-semibold text-cfg-sidebar-subtle max-lg:landscape:text-xs">
                 PLN netto
               </span>
             </span>
           </div>
-          <p className="mt-1 text-right text-[10px] text-[#666] max-lg:landscape:hidden">
+          <p className="mt-1 text-right text-[10px] text-cfg-sidebar-muted max-lg:landscape:hidden">
             {scope.fence ? (
               <>
                 {quote.pricePerPanelNet.toLocaleString("pl-PL")} PLN/odcinek ·{" "}

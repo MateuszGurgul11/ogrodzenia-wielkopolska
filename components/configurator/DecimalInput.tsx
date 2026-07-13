@@ -18,7 +18,7 @@ type Props = {
 };
 
 const VARIANT_CLASSES: Record<NonNullable<Props["variant"]>, string> = {
-  dark: "border-[#444] bg-[#1a1a1a] text-white placeholder:text-[#666] focus:border-[#ff3131]",
+  dark: "border-cfg-sidebar-border bg-cfg-sidebar-input text-white placeholder:text-cfg-sidebar-subtle focus:border-[#ff3131]",
   light:
     "border-[#d4d4d8] bg-white text-[#303638] placeholder:text-[#9ca3af] focus:border-[#ff3131]",
 };

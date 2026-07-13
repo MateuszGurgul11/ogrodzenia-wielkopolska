@@ -1,5 +1,5 @@
 import type { FenceStackSlot, FenceStackVersion, FenceVariant } from "@/lib/types";
-import { ensureSlotUids } from "@/lib/fence/slotUid";
+import { createSlotUid, ensureSlotUids } from "@/lib/fence/slotUid";
 
 const VERSION_LETTERS = ["A", "B", "C", "D", "E", "F"] as const;
 
@@ -20,16 +20,25 @@ export function defaultStackVersionName(index: number): string {
   return `Wersja ${letter}`;
 }
 
+export function createDefaultMainStackSlot(blockId: string): FenceStackSlot {
+  return { uid: createSlotUid(), blockId, mode: "repeat" };
+}
+
 export function createDefaultStackVersion(
   index: number,
   source?: FenceStackVersion,
+  defaultBlockId?: string,
 ): FenceStackVersion {
+  let stack: FenceStackSlot[] = [];
+  if (source?.stack?.length) {
+    stack = ensureSlotUids(source.stack.map((s) => ({ ...s })));
+  } else if (defaultBlockId) {
+    stack = [createDefaultMainStackSlot(defaultBlockId)];
+  }
   return {
     id: createStackVersionId(),
     name: defaultStackVersionName(index),
-    stack: source?.stack?.length
-      ? ensureSlotUids(source.stack.map((s) => ({ ...s })))
-      : [],
+    stack,
     azurowoscEnabled: source?.azurowoscEnabled ?? false,
     azurowoscOptions: source?.azurowoscOptions
       ? JSON.parse(JSON.stringify(source.azurowoscOptions))
