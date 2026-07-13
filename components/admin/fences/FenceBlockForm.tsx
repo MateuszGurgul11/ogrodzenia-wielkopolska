@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
 import { Button } from "@/components/ui/button";
@@ -22,12 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createEntity, isApiConfigured, updateEntity } from "@/lib/api/client";
-import {
-  buildFenceSvg,
-  getFenceContentBounds,
-  getViewWidth,
-  VIEW_H,
-} from "@/lib/fence/renderFence";
+import { buildPanelBlockPreviewSvg } from "@/lib/fence/buildVariantPreview";
 import {
   type PanelPresetKey,
   defaultPresetKeyForRole,
@@ -36,8 +32,6 @@ import {
 } from "@/lib/fence/patterns";
 import { fenceBlockSchema } from "@/lib/validations";
 import type { FenceBlock } from "@/lib/types";
-
-const PREVIEW_COLOR = "#b0b0b4";
 
 type FormState = {
   name: string;
@@ -83,6 +77,8 @@ type Props = {
   initialRole?: "standard" | "cap";
   sortOrder?: number;
   onSaved?: () => void;
+  /** Otwiera dialog wgrywania własnego SVG (zamiast presetu proceduralnego). */
+  onRequestCustomSvg?: (role: "standard" | "cap") => void;
   /** @deprecated Użyj onSaved */
   onCreated?: (block: FenceBlock) => void;
 };
@@ -94,6 +90,7 @@ export function FenceBlockForm({
   initialRole = "standard",
   sortOrder = 0,
   onSaved,
+  onRequestCustomSvg,
   onCreated,
 }: Props) {
   const { getToken } = useAdminAuth();
@@ -119,42 +116,33 @@ export function FenceBlockForm({
     [form.role],
   );
 
+  const isCustomSvg = Boolean(editingBlock?.svgMarkup);
+
   const previewSvg = useMemo(() => {
-    const heightM = Math.max(form.heightCm, 10) / 100;
-    const svg = buildFenceSvg({
-      heightM,
-      patternId: "pattern-solid",
-      colorHex: PREVIEW_COLOR,
-      postWidthCm: 20,
-      panelCount: 1,
-      transparent: true,
-      stackUnits: [
-        {
-          heightCm: form.heightCm,
-          gapAfterCm: 0,
-          isGap: false,
-          role: form.role,
-          patternKey: form.patternKey,
-          seed: 0,
-        },
-      ],
+    if (isCustomSvg && editingBlock?.svgMarkup) {
+      return buildPanelBlockPreviewSvg({
+        svgMarkup: editingBlock.svgMarkup,
+        heightCm: form.heightCm,
+        role: form.role,
+      });
+    }
+    return buildPanelBlockPreviewSvg({
+      patternKey: form.patternKey,
+      heightCm: form.heightCm,
+      role: form.role,
+      seed: 0,
     });
-    const viewW = getViewWidth(1);
-    const bounds = getFenceContentBounds({
-      heightM,
-      postWidthCm: 20,
-      panelCount: 1,
-    });
-    const pad = 6;
-    const vb = `${(bounds.x - pad).toFixed(1)} ${(bounds.y - pad).toFixed(1)} ${(bounds.width + pad * 2).toFixed(1)} ${(bounds.height + pad * 2).toFixed(1)}`;
-    return svg.replace(
-      `viewBox="0 0 ${viewW} ${VIEW_H}"`,
-      `viewBox="${vb}"`,
-    );
-  }, [form.heightCm, form.patternKey, form.role]);
+  }, [isCustomSvg, editingBlock?.svgMarkup, form.heightCm, form.patternKey, form.role]);
 
   async function handleSave() {
-    const parsed = fenceBlockSchema.safeParse(form);
+    const payload = isCustomSvg
+      ? {
+          ...form,
+          svgMarkup: editingBlock?.svgMarkup,
+        }
+      : form;
+
+    const parsed = fenceBlockSchema.safeParse(payload);
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Nieprawidłowe dane");
       return;
@@ -172,6 +160,7 @@ export function FenceBlockForm({
           heightCm: parsed.data.heightCm,
           role: parsed.data.role,
           patternKey: parsed.data.patternKey,
+          svgMarkup: parsed.data.svgMarkup,
           supportsAzurowosc: parsed.data.supportsAzurowosc,
           sortOrder: parsed.data.sortOrder,
           active: parsed.data.active,
@@ -186,6 +175,7 @@ export function FenceBlockForm({
           heightCm: parsed.data.heightCm,
           role: parsed.data.role,
           patternKey: parsed.data.patternKey,
+          svgMarkup: parsed.data.svgMarkup,
           supportsAzurowosc: parsed.data.supportsAzurowosc,
           sortOrder: parsed.data.sortOrder,
           active: parsed.data.active,
@@ -218,34 +208,63 @@ export function FenceBlockForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Preset wyglądu</Label>
-            <Select
-              value={form.patternKey}
-              items={availablePresets.map((p) => ({
-                value: p.key,
-                label: p.label,
-              }))}
-              onValueChange={(v) => {
-                if (!v) return;
-                const key = v as PanelPresetKey;
-                setForm((f) => ({
-                  ...f,
-                  patternKey: key,
-                  role: presetRoleFromKey(key),
-                }));
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {availablePresets.map((p) => (
-                  <SelectItem key={p.key} value={p.key}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isCustomSvg ? (
+              <div className="rounded-lg border border-[#e5e7eb] bg-[#fafafa] px-3 py-2.5 text-sm text-[#303638]">
+                Ten panel ma własny design SVG. Kod i podgląd edytujesz w{" "}
+                <Link
+                  href="/admin/fences/gallery"
+                  className="font-semibold text-[#ff3131] hover:underline"
+                >
+                  galerii paneli
+                </Link>
+                .
+              </div>
+            ) : (
+              <>
+                <Label>Preset wyglądu</Label>
+                <Select
+                  value={form.patternKey}
+                  items={availablePresets.map((p) => ({
+                    value: p.key,
+                    label: p.label,
+                  }))}
+                  onValueChange={(v) => {
+                    if (!v) return;
+                    const key = v as PanelPresetKey;
+                    setForm((f) => ({
+                      ...f,
+                      patternKey: key,
+                      role: presetRoleFromKey(key),
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availablePresets.map((p) => (
+                      <SelectItem key={p.key} value={p.key}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {onRequestCustomSvg && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={() => {
+                      onOpenChange(false);
+                      onRequestCustomSvg(form.role);
+                    }}
+                  >
+                    Wgraj własny design SVG
+                  </Button>
+                )}
+              </>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>Wysokość (cm)</Label>

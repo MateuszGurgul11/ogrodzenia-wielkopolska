@@ -2,21 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
 import { ColorPaletteManager } from "@/components/admin/fences/ColorPaletteManager";
+import { FenceVariantSortableGrid } from "@/components/admin/fences/FenceVariantSortableGrid";
 import { FenceBlockManager } from "@/components/admin/fences/FenceBlockManager";
 import { FencePostManager } from "@/components/admin/fences/FencePostManager";
 import { FencePostMatrix } from "@/components/admin/fences/FencePostMatrix";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   createEntity,
   deleteEntity,
@@ -24,7 +17,7 @@ import {
   isApiConfigured,
 } from "@/lib/api/client";
 import type { FenceBlock, FenceVariant, Post } from "@/lib/types";
-import { getStackVersions, createDefaultStackVersion } from "@/lib/fence/stackVersions";
+import { createDefaultStackVersion } from "@/lib/fence/stackVersions";
 import { cn } from "@/lib/utils";
 
 export default function AdminFencesPage() {
@@ -158,58 +151,14 @@ export default function AdminFencesPage() {
           <Loader2 className="text-primary h-8 w-8 animate-spin" />
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {variants.map((variant) => (
-            <Card
-              key={variant.id}
-              className="relative h-full transition-shadow hover:shadow-md"
-            >
-              <Link href={`/admin/fences/${variant.id}`} className="block">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-2 pr-8">
-                    <CardTitle className="text-lg">{variant.name}</CardTitle>
-                    {variant.active ? (
-                      <Badge>Aktywny</Badge>
-                    ) : (
-                      <Badge variant="secondary">Wyłączony</Badge>
-                    )}
-                  </div>
-                  <CardDescription>
-                    {getStackVersions(variant).length} wersji ·{" "}
-                    {variant.stack.length} slotów ·{" "}
-                    {variant.azurowoscEnabled && variant.azurowoscOptions?.length
-                      ? `ażur: ${variant.azurowoscOptions
-                          .map((o) => `${o.gapCm} cm`)
-                          .join(", ")}`
-                      : "bez ażurowości"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <span className="text-primary text-sm font-medium">
-                    Edytuj →
-                  </span>
-                </CardContent>
-              </Link>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-3 right-3 h-8 w-8"
-                disabled={!canManage || deletingId === variant.id}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  void handleDeleteVariant(variant.id, variant.name);
-                }}
-              >
-                {deletingId === variant.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="text-destructive h-4 w-4" />
-                )}
-              </Button>
-            </Card>
-          ))}
-        </div>
+        <FenceVariantSortableGrid
+          variants={variants}
+          canManage={canManage}
+          deletingId={deletingId}
+          onVariantsChange={setVariants}
+          onDelete={(id, name) => void handleDeleteVariant(id, name)}
+          onError={setError}
+        />
       )}
 
       <FenceBlockManager />

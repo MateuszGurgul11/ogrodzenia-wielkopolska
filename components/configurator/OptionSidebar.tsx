@@ -110,7 +110,7 @@ function ModelCard({
         <p
           className={cn(
             "text-sm font-semibold",
-            selected ? "text-white" : "text-[#ccc]",
+            "text-white",
           )}
         >
           {title}
@@ -587,8 +587,8 @@ export function OptionSidebar({
               )}
               {bramaEnabled && (
                 <p className="mt-3 text-[11px] leading-relaxed text-cfg-sidebar-subtle">
-                  Przejdź do zakładki <strong className="text-[#ccc]">Wycena</strong>,
-                  zamknij obrys i przeciągnij uchwyty <strong className="text-[#ccc]">B1/B2</strong>{" "}
+                  Przejdź do zakładki <strong className="text-white">Wycena</strong>,
+                  zamknij obrys i przeciągnij uchwyty <strong className="text-white">B1/B2</strong>{" "}
                   wzdłuż linii ogrodzenia, aby ustawić szerokość bramy.
                 </p>
               )}
@@ -622,8 +622,8 @@ export function OptionSidebar({
               )}
               {furtkaEnabled && (
                 <p className="mt-3 text-[11px] leading-relaxed text-cfg-sidebar-subtle">
-                  Na zakładce <strong className="text-[#ccc]">Wycena</strong> przeciągnij marker{" "}
-                  <strong className="text-[#ccc]">F</strong> wzdłuż obrysu, aby wskazać miejsce
+                  Na zakładce <strong className="text-white">Wycena</strong> przeciągnij marker{" "}
+                  <strong className="text-white">F</strong> wzdłuż obrysu, aby wskazać miejsce
                   furtki (stała szerokość 1 panelu).
                 </p>
               )}

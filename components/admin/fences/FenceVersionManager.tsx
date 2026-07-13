@@ -25,6 +25,7 @@ type Props = {
   onActiveVersionChange: (versionId: string) => void;
   onVariantChange: (variant: FenceVariant) => void;
   onAddBlock?: (role: "standard" | "cap") => void;
+  onAddCustomSvg?: (role: "standard" | "cap") => void;
   onOpenAzurowosc: (versionId: string) => void;
 };
 
@@ -37,6 +38,7 @@ export function FenceVersionManager({
   onActiveVersionChange,
   onVariantChange,
   onAddBlock,
+  onAddCustomSvg,
   onOpenAzurowosc,
 }: Props) {
   const versions = getStackVersions(variant);
@@ -197,6 +199,7 @@ export function FenceVersionManager({
               })
             }
             onAddBlock={onAddBlock}
+            onAddCustomSvg={onAddCustomSvg}
             onOpenAzurowosc={() => onOpenAzurowosc(activeVersion.id)}
           />
 

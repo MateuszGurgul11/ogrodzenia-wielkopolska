@@ -1,5 +1,6 @@
 import type { PanelPresetKey, PatternId } from "./patterns";
 import { isArchPanel } from "./patterns";
+import { wrapCustomSvgForPanel } from "./sanitizeSvg";
 
 export type StackDrawUnit = {
   textureUrl?: string | null;
@@ -8,6 +9,7 @@ export type StackDrawUnit = {
   isGap?: boolean;
   role?: "standard" | "cap";
   patternKey?: PanelPresetKey;
+  svgMarkup?: string | null;
   seed?: number;
 };
 
@@ -557,35 +559,6 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/** 1. Deska pełna — gładki beton z poziomym „słojem” szalunku. */
-function drawPlankSmooth(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  colorHex: string,
-  seed: number,
-): string {
-  const rand = mulberry32(seed + 101);
-  let out = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="url(#concretePat${seed})" stroke="${darken(colorHex, 0.28)}" stroke-width="1" rx="1"/>`;
-  out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="url(#boardSheen${seed})" opacity="0.5"/>`;
-  const lines = 3;
-  for (let i = 1; i <= lines; i++) {
-    const yy = y + (h * i) / (lines + 1) + (rand() - 0.5) * h * 0.1;
-    const seg = 5;
-    let d = `M ${(x + 3).toFixed(1)} ${yy.toFixed(1)}`;
-    for (let s = 0; s < seg; s++) {
-      const ex = x + 3 + ((w - 6) * (s + 1)) / seg;
-      const cy = yy + (rand() - 0.5) * 2.4;
-      d += ` Q ${(x + 3 + ((w - 6) * (s + 0.5)) / seg).toFixed(1)} ${cy.toFixed(1)} ${ex.toFixed(1)} ${yy.toFixed(1)}`;
-    }
-    out += `<path d="${d}" fill="none" stroke="${darken(colorHex, 0.2)}" stroke-width="0.7" opacity="0.3"/>`;
-  }
-  out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="1.5" fill="${lighten(colorHex, 0.18)}" opacity="0.5"/>`;
-  out += `<rect x="${x.toFixed(1)}" y="${(y + h - 2.5).toFixed(1)}" width="${w.toFixed(1)}" height="2.5" fill="${darken(colorHex, 0.3)}" opacity="0.45"/>`;
-  return out;
-}
-
 /** Pojedyncza cegiełka ze „schodkiem” na górnej krawędzi. */
 function stepTilePath(
   x: number,
@@ -652,25 +625,6 @@ function bevelRow(
   const shadowH = Math.max(1.6, rh * shadowFrac);
   out += `<rect x="${x.toFixed(1)}" y="${(ry + rh - shadowH).toFixed(1)}" width="${w.toFixed(1)}" height="${shadowH.toFixed(1)}" fill="${darken(colorHex, 0.42)}" opacity="0.5"/>`;
   out += `<rect x="${x.toFixed(1)}" y="${ry.toFixed(1)}" width="${w.toFixed(1)}" height="1.2" fill="${lighten(colorHex, 0.2)}" opacity="0.55"/>`;
-  return out;
-}
-
-/** 3. Lamele poziome — gęste rzędy nachodzących na siebie desek. */
-function drawLamelleDense(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  colorHex: string,
-  seed: number,
-): string {
-  const rows = Math.min(10, Math.max(4, Math.round(h / 13)));
-  const rowH = h / rows;
-  let out = "";
-  for (let r = 0; r < rows; r++) {
-    out += bevelRow(x, y + r * rowH, w, rowH, colorHex, seed, 0.24);
-  }
-  out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="none" stroke="${darken(colorHex, 0.28)}" stroke-width="1" rx="1"/>`;
   return out;
 }
 
@@ -882,50 +836,6 @@ function drawConcreteSmooth(
     out += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(0.4 + rand() * 0.6).toFixed(1)}" fill="${darken(colorHex, 0.45)}" opacity="0.16"/>`;
   }
   out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="url(#boardSheen${seed})" opacity="0.35"/>`;
-  return out;
-}
-
-/** 8. Plecionka ażurowa — belki z prześwitami i kamiennymi wstawkami. */
-function drawWeaveOpen(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  colorHex: string,
-  seed: number,
-): string {
-  const rand = mulberry32(seed + 808);
-  const rows = Math.min(7, Math.max(3, Math.round(h / 14)));
-  const unitH = h / rows;
-  const barH = unitH * 0.62;
-  const gapH = unitH - barH;
-  const segs = 5;
-  const segW = w / segs;
-  let out = "";
-  for (let r = 0; r < rows; r++) {
-    const by = y + r * unitH;
-    // Prześwity/wstawki nad belką (poza pierwszym rzędem).
-    if (r > 0) {
-      const gy = by - gapH;
-      for (let k = 0; k < segs; k++) {
-        const isInsert = (Math.floor(rand() * 10) + r + k) % 3 === 0;
-        const gx = x + k * segW;
-        if (isInsert) {
-          out += `<rect x="${(gx + 1).toFixed(1)}" y="${gy.toFixed(1)}" width="${(segW - 2).toFixed(1)}" height="${gapH.toFixed(1)}" fill="${lighten(colorHex, 0.28)}"/>`;
-          const jointX = gx + segW * (0.3 + rand() * 0.4);
-          out += `<line x1="${(gx + 1).toFixed(1)}" y1="${(gy + gapH / 2).toFixed(1)}" x2="${(gx + segW - 1).toFixed(1)}" y2="${(gy + gapH / 2).toFixed(1)}" stroke="${darken(colorHex, 0.28)}" stroke-width="0.8" opacity="0.6"/>`;
-          out += `<line x1="${jointX.toFixed(1)}" y1="${gy.toFixed(1)}" x2="${jointX.toFixed(1)}" y2="${(gy + gapH / 2).toFixed(1)}" stroke="${darken(colorHex, 0.28)}" stroke-width="0.8" opacity="0.5"/>`;
-          out += `<rect x="${(gx + 1).toFixed(1)}" y="${gy.toFixed(1)}" width="${(segW - 2).toFixed(1)}" height="2" fill="${darken(colorHex, 0.35)}" opacity="0.3"/>`;
-          out += `<rect x="${(gx + 1).toFixed(1)}" y="${gy.toFixed(1)}" width="${(segW - 2).toFixed(1)}" height="${gapH.toFixed(1)}" fill="none" stroke="${darken(colorHex, 0.34)}" stroke-width="0.8" opacity="0.65"/>`;
-        }
-        // Brak wstawki = prawdziwy prześwit (tło sceny widoczne).
-      }
-    }
-    out += `<rect x="${x.toFixed(1)}" y="${by.toFixed(1)}" width="${w.toFixed(1)}" height="${barH.toFixed(1)}" fill="url(#concretePat${seed})" rx="2"/>`;
-    out += `<rect x="${x.toFixed(1)}" y="${by.toFixed(1)}" width="${w.toFixed(1)}" height="${barH.toFixed(1)}" fill="url(#boardSheen${seed})" rx="2"/>`;
-    out += `<rect x="${x.toFixed(1)}" y="${(by + barH - 2).toFixed(1)}" width="${w.toFixed(1)}" height="2" fill="${darken(colorHex, 0.4)}" opacity="0.5" rx="1"/>`;
-    out += `<rect x="${x.toFixed(1)}" y="${by.toFixed(1)}" width="${w.toFixed(1)}" height="${barH.toFixed(1)}" fill="none" stroke="${darken(colorHex, 0.32)}" stroke-width="0.8" opacity="0.6" rx="2"/>`;
-  }
   return out;
 }
 
@@ -1266,143 +1176,6 @@ function drawSandstoneArch(
   return out;
 }
 
-/** Moduł kamienia polnego (współrzędne 0–1, zaokrąglone kształty). */
-/** Zaokrąglony, nieregularny obrys kamienia polnego — gładka pętla kwadratowych krzywych. */
-function fieldstoneBlobPath(
-  cx: number,
-  cy: number,
-  rx: number,
-  ry: number,
-  rand: () => number,
-): string {
-  const n = 7 + Math.floor(rand() * 3);
-  const pts: [number, number][] = [];
-  for (let i = 0; i < n; i++) {
-    const a = ((i + (rand() - 0.5) * 0.55) / n) * Math.PI * 2;
-    const f = 0.74 + rand() * 0.32;
-    pts.push([cx + Math.cos(a) * rx * f, cy + Math.sin(a) * ry * f]);
-  }
-  const mid = (p: [number, number], q: [number, number]): [number, number] => [
-    (p[0] + q[0]) / 2,
-    (p[1] + q[1]) / 2,
-  ];
-  const start = mid(pts[n - 1], pts[0]);
-  let d = `M ${start[0].toFixed(1)} ${start[1].toFixed(1)}`;
-  for (let i = 0; i < n; i++) {
-    const m = mid(pts[i], pts[(i + 1) % n]);
-    d += ` Q ${pts[i][0].toFixed(1)} ${pts[i][1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`;
-  }
-  return `${d} Z`;
-}
-
-/** Gęsto upakowane kamienie polne na tle ciemnej fugi (do przycięcia clipem panelu). */
-function drawFieldstoneStones(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  colorHex: string,
-  seed: number,
-  salt: number,
-): string {
-  const rand = mulberry32(seed + salt);
-  const targetSize = Math.max(h / 3.1, 13);
-  const rows = Math.max(2, Math.round(h / targetSize));
-  const cols = Math.max(3, Math.round(w / (targetSize * 1.25)));
-  const cw = w / cols;
-  const ch = h / rows;
-  const joint = darken(colorHex, 0.38);
-  const glint = lighten(colorHex, 0.2);
-  let out = "";
-  for (let r = 0; r < rows; r++) {
-    const rowShift = (r % 2 === 0 ? -1 : 1) * cw * (0.1 + rand() * 0.14);
-    for (let c = 0; c <= cols; c++) {
-      const cx = x + (c + 0.5) * cw + rowShift + (rand() - 0.5) * cw * 0.22;
-      const cy = y + (r + 0.5) * ch + (rand() - 0.5) * ch * 0.18;
-      const rx = cw * (0.55 + rand() * 0.14);
-      const ry = ch * (0.52 + rand() * 0.13);
-      const d = fieldstoneBlobPath(cx, cy, rx, ry, rand);
-      const tone =
-        rand() > 0.42
-          ? lighten(colorHex, 0.06 + rand() * 0.1)
-          : darken(colorHex, 0.03 + rand() * 0.07);
-      out += `<path d="${d}" fill="url(#concretePat${seed})"/>`;
-      out += `<path d="${d}" fill="${tone}" opacity="0.32"/>`;
-      out += `<path d="${d}" fill="none" stroke="${glint}" stroke-width="1.4" opacity="0.3" transform="translate(-0.7 -1.1)"/>`;
-      out += `<path d="${d}" fill="none" stroke="${joint}" stroke-width="1.8" opacity="0.65" stroke-linejoin="round"/>`;
-    }
-  }
-  return out;
-}
-
-/** Kamień — panel główny: rzut kamieni polnych z ciemną fugą i gładką ramką. */
-function drawFieldstone(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  colorHex: string,
-  seed: number,
-): string {
-  const frame = Math.min(Math.max(Math.min(w, h) * 0.05, 2.5), 6);
-  const ix = x + frame;
-  const iy = y + frame;
-  const iw = w - frame * 2;
-  const ih = h - frame * 2;
-  const grout = darken(colorHex, 0.3);
-  const clipId = `fieldPan${seed}_${Math.round(x * 10)}_${Math.round(y * 10)}`;
-
-  let out = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="url(#concretePat${seed})" rx="1"/>`;
-  out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${lighten(colorHex, 0.05)}" opacity="0.25" rx="1"/>`;
-  out += `<defs><clipPath id="${clipId}"><rect x="${ix.toFixed(1)}" y="${iy.toFixed(1)}" width="${iw.toFixed(1)}" height="${ih.toFixed(1)}"/></clipPath></defs>`;
-  out += `<rect x="${ix.toFixed(1)}" y="${iy.toFixed(1)}" width="${iw.toFixed(1)}" height="${ih.toFixed(1)}" fill="${grout}"/>`;
-  out += `<rect x="${ix.toFixed(1)}" y="${iy.toFixed(1)}" width="${iw.toFixed(1)}" height="${ih.toFixed(1)}" fill="url(#concretePat${seed})" opacity="0.4"/>`;
-  out += `<g clip-path="url(#${clipId})">`;
-  out += drawFieldstoneStones(ix, iy, iw, ih, colorHex, seed, 603);
-  out += `</g>`;
-  out += `<rect x="${ix.toFixed(1)}" y="${iy.toFixed(1)}" width="${iw.toFixed(1)}" height="${ih.toFixed(1)}" fill="none" stroke="${darken(colorHex, 0.3)}" stroke-width="1" opacity="0.7"/>`;
-  out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="none" stroke="${darken(colorHex, 0.28)}" stroke-width="1" rx="1"/>`;
-  return out;
-}
-
-/** Kamień górny — nieregularna górna krawędź podążająca za konturami kamieni. */
-function drawFieldstoneCap(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  colorHex: string,
-  seed: number,
-): string {
-  const rand = mulberry32(seed + 704);
-  const N = 40;
-  const riseH = Math.min(Math.max(h * 0.28, 18), h * 0.48);
-  const bottom = y + h;
-
-  let crest = "";
-  for (let i = 0; i <= N; i++) {
-    const t = i / N;
-    const px = x + t * w;
-    const dome = Math.sin(Math.PI * t);
-    const jitter = (rand() - 0.5) * riseH * 0.12 * dome;
-    const py = y + riseH - dome * riseH * 0.88 + jitter;
-    crest += `${i === 0 ? "M" : " L"} ${px.toFixed(1)} ${py.toFixed(1)}`;
-  }
-  const sil = `${crest} L ${(x + w).toFixed(1)} ${bottom.toFixed(1)} L ${x.toFixed(1)} ${bottom.toFixed(1)} Z`;
-  const clipId = `fieldCap${seed}_${Math.round(x * 10)}`;
-  const grout = darken(colorHex, 0.34);
-  const frameStroke = darken(colorHex, 0.24);
-
-  let out = `<defs><clipPath id="${clipId}"><path d="${sil}"/></clipPath></defs>`;
-  out += `<g clip-path="url(#${clipId})">`;
-  out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${grout}"/>`;
-  out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="url(#concretePat${seed})" opacity="0.35"/>`;
-  out += drawFieldstoneStones(x, y, w, h, colorHex, seed, 705);
-  out += `</g>`;
-  out += `<path d="${sil}" fill="none" stroke="${frameStroke}" stroke-width="1"/>`;
-  return out;
-}
-
 /** Rysuje panel wg nowego presetu; null = użyj klasycznego wyglądu. */
 function drawPresetPanel(
   patternKey: PanelPresetKey | undefined,
@@ -1414,12 +1187,8 @@ function drawPresetPanel(
   seed: number,
 ): string | null {
   switch (patternKey) {
-    case "plank-smooth":
-      return drawPlankSmooth(x, y, w, h, colorHex, seed);
     case "tile-offset":
       return drawTileOffset(x, y, w, h, colorHex, seed);
-    case "lamelle-dense":
-      return drawLamelleDense(x, y, w, h, colorHex, seed);
     case "stone-split":
       return drawStoneSplit(x, y, w, h, colorHex, seed);
     case "brick-small":
@@ -1428,18 +1197,12 @@ function drawPresetPanel(
       return drawSandstone(x, y, w, h, colorHex, seed);
     case "sandstone-arch":
       return drawSandstoneArch(x, y, w, h, colorHex, seed);
-    case "fieldstone":
-      return drawFieldstone(x, y, w, h, colorHex, seed);
-    case "fieldstone-cap":
-      return drawFieldstoneCap(x, y, w, h, colorHex, seed);
     case "clapboard-wide":
       return drawClapboardWide(x, y, w, h, colorHex, seed);
     case "wave-dunes":
       return drawWaveDunes(x, y, w, h, colorHex, seed);
     case "concrete-smooth":
       return drawConcreteSmooth(x, y, w, h, colorHex, seed);
-    case "weave-open":
-      return drawWeaveOpen(x, y, w, h, colorHex, seed);
     case "shards":
       return drawShards(x, y, w, h, colorHex, seed);
     case "wave-crest-weave":
@@ -1453,6 +1216,20 @@ function drawPresetPanel(
   }
 }
 
+function drawCustomSvgPanel(
+  px: number,
+  y: number,
+  w: number,
+  h: number,
+  svgMarkup: string,
+  colorHex: string,
+): string {
+  const inner = wrapCustomSvgForPanel(svgMarkup, px, y, w, h);
+  if (!inner) return "";
+  const frameStroke = darken(colorHex, 0.24);
+  return `${inner}<rect x="${px.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="none" stroke="${frameStroke}" stroke-width="1" rx="1"/>`;
+}
+
 function drawConcretePanel(
   px: number,
   y: number,
@@ -1462,7 +1239,12 @@ function drawConcretePanel(
   colorHex: string,
   seed: number,
   patternKey?: PanelPresetKey,
+  svgMarkup?: string | null,
 ): string {
+  if (svgMarkup?.trim()) {
+    return drawCustomSvgPanel(px, y, w, h, svgMarkup, colorHex);
+  }
+
   const preset = drawPresetPanel(patternKey, px, y, w, h, colorHex, seed);
   if (preset !== null) return preset;
 
@@ -1532,6 +1314,7 @@ function drawStackSection(
       colorHex,
       unit.seed ?? 0,
       unit.patternKey,
+      unit.svgMarkup,
     );
     out += `<rect x="${(px + sectionW - 2).toFixed(1)}" y="${currentY.toFixed(1)}" width="2" height="${blockH.toFixed(1)}" fill="${shadowEdge}" opacity="0.35"/>`;
     if (blockH > 4) {

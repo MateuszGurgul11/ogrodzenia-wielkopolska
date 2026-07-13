@@ -28,6 +28,7 @@ type Props = {
   onChange: (stack: FenceStackSlot[]) => void;
   onAzurowoscEnabledChange: (enabled: boolean) => void;
   onAddBlock?: (role: "standard" | "cap") => void;
+  onAddCustomSvg?: (role: "standard" | "cap") => void;
   onOpenAzurowosc: () => void;
   /** Ukrywa nagłówek sekcji ażurowości (np. w drawerze). */
   embedded?: boolean;
@@ -61,7 +62,8 @@ function BlockSelect({
 }
 
 function blockLabel(block: FenceBlock): string {
-  return `${block.name} (${block.heightCm} cm)`;
+  const base = `${block.name} (${block.heightCm} cm)`;
+  return block.svgMarkup ? `${base} · Własny SVG` : base;
 }
 
 function buildStack(
@@ -80,6 +82,7 @@ export function FenceStackEditor({
   onChange,
   onAzurowoscEnabledChange,
   onAddBlock,
+  onAddCustomSvg,
   onOpenAzurowosc,
   embedded = false,
 }: Props) {
@@ -221,16 +224,30 @@ export function FenceStackEditor({
             onValueChange={setTopBlock}
           />
           {onAddBlock && (
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              className="h-auto px-0 text-xs"
-              onClick={() => onAddBlock("cap")}
-            >
-              <Plus className="mr-1 h-3 w-3" />
-              Nowy panel górny
-            </Button>
+            <div className="flex flex-wrap gap-x-3">
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto px-0 text-xs"
+                onClick={() => onAddBlock("cap")}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Nowy panel górny
+              </Button>
+              {onAddCustomSvg && (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto px-0 text-xs"
+                  onClick={() => onAddCustomSvg("cap")}
+                >
+                  <Plus className="mr-1 h-3 w-3" />
+                  Własny design SVG
+                </Button>
+              )}
+            </div>
           )}
           <p className="text-muted-foreground text-xs">
             Panel górny (cap) lub ten sam układ co panele główne bez osobnej
@@ -246,16 +263,30 @@ export function FenceStackEditor({
             placeholder="Wybierz panel główny"
           />
           {onAddBlock && (
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              className="h-auto px-0 text-xs"
-              onClick={() => onAddBlock("standard")}
-            >
-              <Plus className="mr-1 h-3 w-3" />
-              Nowy panel główny
-            </Button>
+            <div className="flex flex-wrap gap-x-3">
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto px-0 text-xs"
+                onClick={() => onAddBlock("standard")}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Nowy panel główny
+              </Button>
+              {onAddCustomSvg && (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto px-0 text-xs"
+                  onClick={() => onAddCustomSvg("standard")}
+                >
+                  <Plus className="mr-1 h-3 w-3" />
+                  Własny design SVG
+                </Button>
+              )}
+            </div>
           )}
           <p className="text-muted-foreground text-xs">
             Powtarzane do wypełnienia wysokości ogrodzenia.

@@ -24,7 +24,7 @@ const VARIANT_CLASSES: Record<NonNullable<Props["variant"]>, string> = {
 };
 
 const SUFFIX_CLASSES: Record<NonNullable<Props["variant"]>, string> = {
-  dark: "text-[#8a8a8a]",
+  dark: "text-cfg-sidebar-muted",
   light: "text-[#9ca3af]",
 };
 

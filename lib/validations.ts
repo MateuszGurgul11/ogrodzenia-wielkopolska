@@ -117,17 +117,29 @@ export const postTextureSchema = z.object({
   sortOrder: z.coerce.number().int().min(0).default(0),
 });
 
-export const fenceBlockSchema = z.object({
-  name: z.string().min(1, "Nazwa jest wymagana"),
-  heightCm: z.coerce.number().min(5).max(250),
-  role: z.enum(["standard", "cap"]),
-  patternKey: z.enum(PANEL_PRESET_KEYS).optional(),
-  supportsAzurowosc: z.boolean(),
-  description: optionalString,
-  baseTextureUrl: clearableUrl,
-  sortOrder: z.coerce.number().int().min(0),
-  active: z.boolean(),
-});
+export const fenceBlockSchema = z
+  .object({
+    name: z.string().min(1, "Nazwa jest wymagana"),
+    heightCm: z.coerce.number().min(5).max(250),
+    role: z.enum(["standard", "cap"]),
+    patternKey: z.enum(PANEL_PRESET_KEYS).optional(),
+    svgMarkup: z.preprocess(
+      (val) => {
+        if (val === null || val === undefined || val === "") return undefined;
+        return String(val);
+      },
+      z.string().min(10, "SVG jest za krótki").max(200_000).optional(),
+    ),
+    supportsAzurowosc: z.boolean(),
+    description: optionalString,
+    baseTextureUrl: clearableUrl,
+    sortOrder: z.coerce.number().int().min(0),
+    active: z.boolean(),
+  })
+  .refine((data) => Boolean(data.patternKey || data.svgMarkup), {
+    message: "Wybierz wzór proceduralny lub wgraj własny SVG",
+    path: ["svgMarkup"],
+  });
 
 export const fenceStackSlotSchema = z.object({
   blockId: z.string().min(1),

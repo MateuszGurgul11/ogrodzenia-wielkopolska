@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
 import { AzurowoscDesigner } from "@/components/admin/fences/AzurowoscDesigner";
 import { AzurowoscDrawer } from "@/components/admin/fences/AzurowoscDrawer";
+import { CustomSvgDesignDialog } from "@/components/admin/fences/CustomSvgDesignDialog";
 import { FenceBlockForm } from "@/components/admin/fences/FenceBlockForm";
 import {
   FenceColorMatrix,
@@ -71,6 +72,7 @@ export default function AdminFenceEditorPage() {
   const [variantDirty, setVariantDirty] = useState(false);
   const [pricesDirty, setPricesDirty] = useState(false);
   const [blockFormOpen, setBlockFormOpen] = useState(false);
+  const [svgDialogOpen, setSvgDialogOpen] = useState(false);
   const [blockCreateRole, setBlockCreateRole] = useState<"standard" | "cap">(
     "standard",
   );
@@ -404,6 +406,11 @@ export default function AdminFenceEditorPage() {
                 setBlockCreateRole(role);
                 setBlockFormOpen(true);
               }}
+              onAddCustomSvg={(role) => {
+                setBlockCreateRole(role);
+                setBlockFormOpen(false);
+                setSvgDialogOpen(true);
+              }}
               onOpenAzurowosc={(versionId) => {
                 setAzurVersionId(versionId);
                 setAzurDrawerOpen(true);
@@ -508,6 +515,20 @@ export default function AdminFenceEditorPage() {
         open={blockFormOpen}
         onOpenChange={setBlockFormOpen}
         initialRole={blockCreateRole}
+        sortOrder={blocks.length}
+        onSaved={() => load()}
+        onRequestCustomSvg={(role) => {
+          setBlockCreateRole(role);
+          setBlockFormOpen(false);
+          setSvgDialogOpen(true);
+        }}
+      />
+
+      <CustomSvgDesignDialog
+        open={svgDialogOpen}
+        onOpenChange={setSvgDialogOpen}
+        initialRole={blockCreateRole}
+        sortOrder={blocks.length}
         onSaved={() => load()}
       />
 

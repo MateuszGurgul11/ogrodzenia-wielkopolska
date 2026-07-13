@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Loader2, Undo2 } from "lucide-react";
+import { Check, Code2, Loader2, Plus, Undo2 } from "lucide-react";
 import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
+import { CustomSvgDesignDialog } from "@/components/admin/fences/CustomSvgDesignDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,18 +16,21 @@ import { buildPanelBlockPreviewSvg } from "@/lib/fence/buildVariantPreview";
 import { PANEL_PRESETS } from "@/lib/fence/patterns";
 import type { FenceBlock } from "@/lib/types";
 
-function presetLabel(key: FenceBlock["patternKey"]): string {
-  return PANEL_PRESETS.find((p) => p.key === key)?.label ?? "Bez wzoru";
+function presetLabel(block: FenceBlock): string {
+  if (block.svgMarkup) return "Własny SVG";
+  return PANEL_PRESETS.find((p) => p.key === block.patternKey)?.label ?? "Bez wzoru";
 }
 
 function PanelCard({
   block,
   canManage,
   onRename,
+  onEditSvg,
 }: {
   block: FenceBlock;
   canManage: boolean;
   onRename: (block: FenceBlock, name: string) => Promise<void>;
+  onEditSvg: (block: FenceBlock) => void;
 }) {
   const [name, setName] = useState(block.name);
   const [prevBlockName, setPrevBlockName] = useState(block.name);
@@ -41,14 +45,16 @@ function PanelCard({
   const svg = useMemo(
     () =>
       buildPanelBlockPreviewSvg({
-        patternKey: block.patternKey ?? "concrete-standard",
+        patternKey: block.patternKey,
+        svgMarkup: block.svgMarkup,
         heightCm: block.heightCm,
         role: block.role,
       }),
-    [block.patternKey, block.heightCm, block.role],
+    [block.patternKey, block.svgMarkup, block.heightCm, block.role],
   );
 
   const dirty = name.trim() !== block.name;
+  const isCustom = Boolean(block.svgMarkup);
 
   async function save() {
     const trimmed = name.trim();
@@ -79,6 +85,11 @@ function PanelCard({
           ) : (
             <Badge variant="secondary">Nieaktywny</Badge>
           )}
+          {isCustom && (
+            <Badge variant="outline" className="border-[#6366f1] bg-white/90 text-[#6366f1]">
+              Własny SVG
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -94,6 +105,17 @@ function PanelCard({
             }}
             aria-label="Nazwa panelu"
           />
+          {isCustom && canManage && (
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-9 w-9 shrink-0"
+              onClick={() => onEditSvg(block)}
+              title="Edytuj SVG"
+            >
+              <Code2 className="h-4 w-4" />
+            </Button>
+          )}
           {dirty && (
             <>
               <Button
@@ -128,9 +150,7 @@ function PanelCard({
         <dl className="grid gap-1.5 text-xs text-[#6b7280]">
           <div className="flex items-center justify-between gap-2">
             <dt>Wzór</dt>
-            <dd className="font-medium text-[#303638]">
-              {presetLabel(block.patternKey)}
-            </dd>
+            <dd className="font-medium text-[#303638]">{presetLabel(block)}</dd>
           </div>
           <div className="flex items-center justify-between gap-2">
             <dt>Wysokość płyty</dt>
@@ -173,6 +193,9 @@ export function FencePanelGallery() {
   const [blocks, setBlocks] = useState<FenceBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogRole, setDialogRole] = useState<"standard" | "cap">("standard");
+  const [editingBlock, setEditingBlock] = useState<FenceBlock | null>(null);
   const canManage = isApiConfigured() && Boolean(user);
 
   const load = useCallback(async () => {
@@ -197,6 +220,18 @@ export function FencePanelGallery() {
     load();
   }, [load]);
 
+  function openCreateDialog(role: "standard" | "cap") {
+    setEditingBlock(null);
+    setDialogRole(role);
+    setDialogOpen(true);
+  }
+
+  function openEditDialog(block: FenceBlock) {
+    setEditingBlock(block);
+    setDialogRole(block.role);
+    setDialogOpen(true);
+  }
+
   const handleRename = useCallback(
     async (block: FenceBlock, name: string) => {
       const token = await getToken();
@@ -208,6 +243,7 @@ export function FencePanelGallery() {
           heightCm: block.heightCm,
           role: block.role,
           patternKey: block.patternKey,
+          svgMarkup: block.svgMarkup,
           supportsAzurowosc: block.supportsAzurowosc,
           description: block.description,
           baseTextureUrl: block.baseTextureUrl,
@@ -233,7 +269,11 @@ export function FencePanelGallery() {
   );
 
   const unusedPresets = useMemo(() => {
-    const used = new Set(blocks.map((b) => b.patternKey));
+    const used = new Set(
+      blocks
+        .filter((b) => !b.svgMarkup && b.patternKey)
+        .map((b) => b.patternKey),
+    );
     return PANEL_PRESETS.filter((p) => !used.has(p.key)).map((preset) => ({
       key: preset.key,
       label: preset.label,
@@ -244,6 +284,8 @@ export function FencePanelGallery() {
       }),
     }));
   }, [blocks]);
+
+  const nextSortOrder = blocks.length;
 
   if (loading) {
     return (
@@ -270,12 +312,18 @@ export function FencePanelGallery() {
       )}
 
       <section className="space-y-4">
-        <div>
-          <h2 className="font-heading text-lg font-semibold">Panele główne</h2>
-          <p className="text-muted-foreground text-sm">
-            Powtarzalne płyty wypełniające wysokość ogrodzenia. Kliknij nazwę,
-            aby ją zmienić.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-heading text-lg font-semibold">Panele główne</h2>
+            <p className="text-muted-foreground text-sm">
+              Powtarzalne płyty wypełniające wysokość ogrodzenia. Kliknij nazwę,
+              aby ją zmienić.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => openCreateDialog("standard")}>
+            <Plus className="mr-1 h-4 w-4" />
+            Własny design SVG
+          </Button>
         </div>
         {mainPanels.length === 0 ? (
           <p className="text-muted-foreground text-sm">Brak paneli głównych.</p>
@@ -287,6 +335,7 @@ export function FencePanelGallery() {
                 block={block}
                 canManage={canManage}
                 onRename={handleRename}
+                onEditSvg={openEditDialog}
               />
             ))}
           </div>
@@ -294,11 +343,17 @@ export function FencePanelGallery() {
       </section>
 
       <section className="space-y-4">
-        <div>
-          <h2 className="font-heading text-lg font-semibold">Panele górne</h2>
-          <p className="text-muted-foreground text-sm">
-            Płyty zamykające stos — montowane raz, na górze przęsła.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-heading text-lg font-semibold">Panele górne</h2>
+            <p className="text-muted-foreground text-sm">
+              Płyty zamykające stos — montowane raz, na górze przęsła.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => openCreateDialog("cap")}>
+            <Plus className="mr-1 h-4 w-4" />
+            Własny design SVG
+          </Button>
         </div>
         {capPanels.length === 0 ? (
           <p className="text-muted-foreground text-sm">Brak paneli górnych.</p>
@@ -310,6 +365,7 @@ export function FencePanelGallery() {
                 block={block}
                 canManage={canManage}
                 onRename={handleRename}
+                onEditSvg={openEditDialog}
               />
             ))}
           </div>
@@ -337,6 +393,15 @@ export function FencePanelGallery() {
           </div>
         </section>
       )}
+
+      <CustomSvgDesignDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        initialRole={dialogRole}
+        sortOrder={nextSortOrder}
+        editingBlock={editingBlock}
+        onSaved={load}
+      />
     </div>
   );
 }

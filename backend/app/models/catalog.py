@@ -66,6 +66,7 @@ class FenceBlockCreate(BaseModel):
     active: bool = True
     description: str | None = None
     baseTextureUrl: str | None = None
+    svgMarkup: str | None = Field(default=None, max_length=200_000)
 
 
 class FenceBlockOut(FenceBlockCreate):

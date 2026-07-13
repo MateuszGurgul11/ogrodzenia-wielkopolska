@@ -67,6 +67,7 @@ export function buildStackDrawUnits(options: {
       isGap: false,
       role: block?.role ?? "standard",
       patternKey: block?.patternKey,
+      svgMarkup: block?.svgMarkup ?? null,
       seed: index,
     };
   });

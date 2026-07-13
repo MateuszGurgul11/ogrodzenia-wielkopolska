@@ -16,8 +16,9 @@ export default function FenceGalleryPage() {
           </p>
           <h1 className="font-heading text-2xl font-semibold">Galeria paneli</h1>
           <p className="text-muted-foreground mt-1 max-w-2xl text-sm">
-            Podglądy wszystkich wygenerowanych paneli (wzorów proceduralnych).
-            Nazwy paneli możesz edytować bezpośrednio na kartach.
+            Podglądy wszystkich paneli — proceduralnych i własnych SVG. Możesz
+            wkleić kod lub wgrać plik .svg; panel trafi do bazy jako panel główny
+            lub górny i będzie widoczny w konfiguratorze.
           </p>
         </div>
       </div>

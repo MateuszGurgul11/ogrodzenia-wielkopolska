@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
+import { CustomSvgDesignDialog } from "@/components/admin/fences/CustomSvgDesignDialog";
 import { FenceBlockForm } from "@/components/admin/fences/FenceBlockForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,9 +26,11 @@ function PanelSection({
   description,
   panels,
   addLabel,
+  customSvgLabel,
   canManage,
   deletingId,
   onAdd,
+  onAddCustomSvg,
   onEdit,
   onDelete,
 }: {
@@ -35,9 +38,11 @@ function PanelSection({
   description: string;
   panels: FenceBlock[];
   addLabel: string;
+  customSvgLabel: string;
   canManage: boolean;
   deletingId: string | null;
   onAdd: () => void;
+  onAddCustomSvg: () => void;
   onEdit: (block: FenceBlock) => void;
   onDelete: (id: string, name: string) => void;
 }) {
@@ -48,10 +53,16 @@ function PanelSection({
           <h3 className="font-medium">{title}</h3>
           <p className="text-muted-foreground text-sm">{description}</p>
         </div>
-        <Button variant="outline" size="sm" disabled={!canManage} onClick={onAdd}>
-          <Plus className="mr-1 h-4 w-4" />
-          {addLabel}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" disabled={!canManage} onClick={onAdd}>
+            <Plus className="mr-1 h-4 w-4" />
+            {addLabel}
+          </Button>
+          <Button variant="outline" size="sm" disabled={!canManage} onClick={onAddCustomSvg}>
+            <Plus className="mr-1 h-4 w-4" />
+            {customSvgLabel}
+          </Button>
+        </div>
       </div>
 
       {panels.length === 0 ? (
@@ -92,11 +103,16 @@ function PanelSection({
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 flex flex-wrap items-center gap-2">
                 {block.active ? (
                   <Badge>Aktywny</Badge>
                 ) : (
                   <Badge variant="secondary">Wyłączony</Badge>
+                )}
+                {block.svgMarkup && (
+                  <Badge variant="outline" className="border-[#6366f1] text-[#6366f1]">
+                    Własny SVG
+                  </Badge>
                 )}
               </CardContent>
             </Card>
@@ -113,7 +129,9 @@ export function FenceBlockManager() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [svgDialogOpen, setSvgDialogOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState<FenceBlock | null>(null);
+  const [svgEditingBlock, setSvgEditingBlock] = useState<FenceBlock | null>(null);
   const [createRole, setCreateRole] = useState<"standard" | "cap">("standard");
   const [error, setError] = useState<string | null>(null);
   const canManage = isApiConfigured() && Boolean(user);
@@ -150,11 +168,25 @@ export function FenceBlockManager() {
 
   function openCreate(role: "standard" | "cap") {
     setEditingBlock(null);
+    setSvgEditingBlock(null);
     setCreateRole(role);
     setFormOpen(true);
   }
 
+  function openCustomSvg(role: "standard" | "cap", block: FenceBlock | null = null) {
+    setEditingBlock(null);
+    setFormOpen(false);
+    setSvgEditingBlock(block);
+    setCreateRole(role);
+    setSvgDialogOpen(true);
+  }
+
   function openEdit(block: FenceBlock) {
+    if (block.svgMarkup) {
+      openCustomSvg(block.role, block);
+      return;
+    }
+    setSvgEditingBlock(null);
     setEditingBlock(block);
     setFormOpen(true);
   }
@@ -162,6 +194,11 @@ export function FenceBlockManager() {
   function handleFormOpenChange(open: boolean) {
     setFormOpen(open);
     if (!open) setEditingBlock(null);
+  }
+
+  function handleSvgDialogOpenChange(open: boolean) {
+    setSvgDialogOpen(open);
+    if (!open) setSvgEditingBlock(null);
   }
 
   async function handleDelete(id: string, name: string) {
@@ -206,9 +243,11 @@ export function FenceBlockManager() {
             description="Powtarzalne panele wypełniające wysokość ogrodzenia."
             panels={mainPanels}
             addLabel="Nowy panel główny"
+            customSvgLabel="Własny design SVG"
             canManage={canManage}
             deletingId={deletingId}
             onAdd={() => openCreate("standard")}
+            onAddCustomSvg={() => openCustomSvg("standard")}
             onEdit={openEdit}
             onDelete={handleDelete}
           />
@@ -217,9 +256,11 @@ export function FenceBlockManager() {
             description="Panel zamykający stos — montowany raz na górze."
             panels={capPanels}
             addLabel="Nowy panel górny"
+            customSvgLabel="Własny design SVG"
             canManage={canManage}
             deletingId={deletingId}
             onAdd={() => openCreate("cap")}
+            onAddCustomSvg={() => openCustomSvg("cap")}
             onEdit={openEdit}
             onDelete={handleDelete}
           />
@@ -232,6 +273,16 @@ export function FenceBlockManager() {
         editingBlock={editingBlock}
         initialRole={createRole}
         sortOrder={blocks.length}
+        onSaved={() => load()}
+        onRequestCustomSvg={(role) => openCustomSvg(role)}
+      />
+
+      <CustomSvgDesignDialog
+        open={svgDialogOpen}
+        onOpenChange={handleSvgDialogOpenChange}
+        initialRole={createRole}
+        sortOrder={blocks.length}
+        editingBlock={svgEditingBlock}
         onSaved={() => load()}
       />
     </section>

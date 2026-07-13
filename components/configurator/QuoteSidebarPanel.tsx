@@ -343,7 +343,7 @@ export function QuoteSidebarPanel({ catalog, selection }: Props) {
         <button
           type="button"
           onClick={() => setQuoteAdvancedView(false)}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-cfg-sidebar-border bg-cfg-sidebar-surface py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-white/80 transition-colors hover:border-white/30 hover:text-white"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-cfg-sidebar-border bg-cfg-sidebar-surface py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:border-white/30 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           Wróć do prostego widoku
@@ -395,7 +395,7 @@ export function QuoteSidebarPanel({ catalog, selection }: Props) {
                     {quoteFenceClosed && quotePerimeterM && (
                       <p className="text-[10px] leading-relaxed text-cfg-sidebar-subtle">
                         Na rzucie zmierzono{" "}
-                        <strong className="text-[#ccc]">
+                        <strong className="text-white">
                           {quotePerimeterM.toFixed(1)} m
                         </strong>{" "}
                         — ta wartość ma pierwszeństwo w kalkulacji.
@@ -552,7 +552,7 @@ export function QuoteSidebarPanel({ catalog, selection }: Props) {
                           key={`point-${index}`}
                           type="button"
                           onClick={() => removeQuoteFencePointAt(index)}
-                          className="flex items-center gap-1 rounded-md border border-cfg-sidebar-border bg-cfg-sidebar-input px-2 py-1 text-[11px] font-semibold text-[#ccc] hover:border-[#ff3131]"
+                          className="flex items-center gap-1 rounded-md border border-cfg-sidebar-border bg-cfg-sidebar-input px-2 py-1 text-[11px] font-semibold text-white hover:border-[#ff3131]"
                         >
                           <span>{index + 1}</span>
                           <X className="h-3 w-3 text-[#ff3131]" />
@@ -603,7 +603,7 @@ export function QuoteSidebarPanel({ catalog, selection }: Props) {
         <button
           type="button"
           onClick={() => setQuoteAdvancedView(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-cfg-sidebar-border bg-cfg-sidebar-input py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-white/80 transition-colors hover:border-white/30 hover:text-white"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-cfg-sidebar-border bg-cfg-sidebar-input py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:border-white/30 hover:text-white"
         >
           <Map className="h-4 w-4 text-[#ff3131]" />
           Zaawansowany widok (rzut działki)

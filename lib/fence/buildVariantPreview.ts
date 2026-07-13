@@ -1,4 +1,5 @@
 import { buildStackDrawUnits } from "@/lib/fence/buildStackDraw";
+import { buildCustomSvgPreview } from "@/lib/fence/sanitizeSvg";
 import type { PanelPresetKey } from "@/lib/fence/patterns";
 import {
   buildFenceSvg,
@@ -109,14 +110,20 @@ function summarizeStack(
   return names.join(" · ");
 }
 
-/** Podgląd pojedynczej płyty (jeden preset) — przycięty do samego panelu. */
+/** Podgląd pojedynczej płyty (jeden preset lub własny SVG) — przycięty do samego panelu. */
 export function buildPanelBlockPreviewSvg(options: {
-  patternKey: PanelPresetKey;
+  patternKey?: PanelPresetKey;
+  svgMarkup?: string | null;
   heightCm: number;
   role: "standard" | "cap";
   colorHex?: string;
   seed?: number;
 }): string {
+  if (options.svgMarkup?.trim()) {
+    return buildCustomSvgPreview(options.svgMarkup);
+  }
+
+  const patternKey = options.patternKey ?? "concrete-standard";
   const heightM = Math.max(options.heightCm, 10) / 100;
   const svg = buildFenceSvg({
     heightM,
@@ -131,7 +138,7 @@ export function buildPanelBlockPreviewSvg(options: {
         gapAfterCm: 0,
         isGap: false,
         role: options.role,
-        patternKey: options.patternKey,
+        patternKey,
         seed: options.seed ?? 0,
       },
     ],

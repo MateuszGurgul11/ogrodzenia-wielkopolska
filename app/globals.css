@@ -86,8 +86,8 @@
   --cfg-sidebar-surface-hover: #72757a;
   --cfg-sidebar-surface-border: #5e6166;
   --cfg-sidebar-input: #5e6166;
-  --cfg-sidebar-muted: #d8d9dc;
-  --cfg-sidebar-subtle: #b8babd;
+  --cfg-sidebar-muted: #ffffff;
+  --cfg-sidebar-subtle: rgba(255, 255, 255, 0.92);
   --cfg-sidebar-tab-active: #62656a;
 }
 

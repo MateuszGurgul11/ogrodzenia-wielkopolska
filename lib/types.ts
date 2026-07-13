@@ -30,6 +30,8 @@ export type FenceBlock = {
   active: boolean;
   description?: string;
   baseTextureUrl?: string;
+  /** Własny markup SVG (pełny dokument lub fragment). Gdy ustawiony, zastępuje preset proceduralny. */
+  svgMarkup?: string;
 };
 
 export type FenceStackSlot = {
