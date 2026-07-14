@@ -1176,6 +1176,128 @@ function drawSandstoneArch(
   return out;
 }
 
+/**
+ * Kamienie muru z otoczaków (projekt w układzie 400×120).
+ * tone = odchylenie jasności od koloru bazowego: >0 lighten, <0 darken.
+ */
+const FIELDSTONE_STONES: { d: string; tone: number }[] = [
+  { d: "M4.5 0.4L25.1 -2.8Q28.3 -3.3 31.5 -2.8L52.1 0.4Q55.3 0.9 55.2 3.0L54.6 16.8Q54.5 18.9 54.3 21.1L53.2 34.8Q53.0 37.0 49.9 37.3L30.3 39.7Q27.2 40.0 24.1 40.0L4.4 39.8Q1.3 39.8 1.7 37.4L4.1 22.7Q4.5 20.3 4.1 18.0L1.7 3.2Q1.3 0.9 4.5 0.4Z", tone: 0.035 },
+  { d: "M60.1 1.3L76.3 4.6Q78.9 5.1 81.4 4.6L97.6 1.3Q100.2 0.8 99.8 2.9L97.0 16.1Q96.6 18.1 96.6 20.3L97.1 33.7Q97.2 35.8 94.7 35.3L78.6 32.4Q76.1 31.9 73.6 32.5L57.7 36.3Q55.2 36.9 55.4 34.8L56.5 21.1Q56.7 18.9 56.8 16.7L57.4 3.0Q57.5 0.8 60.1 1.3Z", tone: 0.015 },
+  { d: "M104.8 0.4L120.4 -2.0Q122.8 -2.4 125.3 -2.0L140.8 0.4Q143.3 0.8 144.3 2.9L151.1 16.4Q152.2 18.5 152.3 20.9L153.1 36.0Q153.3 38.3 150.1 37.5L129.8 32.5Q126.6 31.6 123.3 32.1L102.6 35.3Q99.3 35.8 99.3 33.7L98.8 20.2Q98.7 18.1 99.1 16.0L101.9 2.9Q102.3 0.8 104.8 0.4Z", tone: -0.06 },
+  { d: "M148.1 1.3L165.1 3.7Q167.8 4.1 170.5 3.7L187.6 1.3Q190.2 0.9 190.4 3.4L191.7 19.3Q191.9 21.8 192.0 24.3L193.1 40.1Q193.2 42.6 191.0 42.0L176.9 37.9Q174.7 37.2 172.4 37.4L157.7 38.3Q155.4 38.5 155.2 36.1L154.4 21.0Q154.3 18.7 153.2 16.5L146.4 3.1Q145.4 0.9 148.1 1.3Z", tone: -0.06 },
+  { d: "M196.9 1.1L217.8 2.3Q221.1 2.5 224.4 2.3L245.3 1.1Q248.6 0.9 251.3 0.8L268.1 -0.1Q270.8 -0.3 273.4 -0.1L290.3 0.8Q292.9 0.9 293.3 2.9L295.5 15.9Q295.9 17.9 296.3 19.9L299.4 32.7Q299.9 34.7 296.8 34.9L277.4 36.1Q274.3 36.3 271.3 36.9L252.2 41.0Q249.2 41.7 246.1 41.4L226.0 40.0Q222.9 39.8 219.7 40.1L199.8 42.3Q196.6 42.6 196.5 40.1L195.4 24.3Q195.2 21.7 195.0 19.2L193.8 3.4Q193.6 0.9 196.9 1.1Z", tone: 0.015 },
+  { d: "M299.8 1.4L321.1 5.0Q324.4 5.5 327.8 5.0L349.0 1.4Q352.4 0.8 352.5 2.6L353.1 14.0Q353.2 15.8 352.7 17.6L349.6 28.6Q349.1 30.3 346.4 31.0L329.3 35.7Q326.6 36.5 323.9 36.3L306.2 34.8Q303.4 34.6 302.9 32.6L299.9 19.8Q299.4 17.8 299.1 15.8L296.8 2.8Q296.5 0.8 299.8 1.4Z", tone: -0.035 },
+  { d: "M357.3 0.7L374.2 0.4Q376.8 0.3 379.5 0.4L396.3 0.7Q398.9 0.8 399.3 3.1L401.6 17.6Q401.9 19.9 401.6 22.2L399.3 36.7Q398.9 39.0 396.1 38.6L377.9 36.0Q375.0 35.5 372.2 34.9L354.2 30.9Q351.4 30.3 351.9 28.6L355.0 17.6Q355.5 15.8 355.4 14.0L354.8 2.6Q354.7 0.8 357.3 0.7Z", tone: 0.015 },
+  { d: "M4.4 41.6L24.1 41.9Q27.2 41.9 30.3 41.5L49.9 39.2Q53.0 38.8 53.0 41.9L52.7 61.1Q52.6 64.1 53.6 67.0L59.8 85.2Q60.8 88.0 57.3 86.9L34.9 79.7Q31.4 78.5 27.8 77.7L4.9 72.7Q1.3 71.9 1.1 70.1L-0.4 58.6Q-0.6 56.8 -0.4 54.9L1.1 43.4Q1.3 41.6 4.4 41.6Z", tone: -0.06 },
+  { d: "M57.7 38.2L73.6 34.4Q76.1 33.8 78.6 34.2L94.6 37.2Q97.2 37.6 97.0 39.8L96.1 53.3Q95.9 55.5 95.7 57.6L93.9 71.1Q93.6 73.2 91.9 74.4L81.2 81.8Q79.5 83.0 77.5 83.6L64.9 87.4Q63.0 88.0 62.0 85.1L55.8 66.9Q54.8 64.1 54.8 61.0L55.1 41.8Q55.2 38.8 57.7 38.2Z", tone: 0.015 },
+  { d: "M102.5 37.0L123.2 33.9Q126.5 33.4 129.7 34.2L150.0 39.3Q153.2 40.1 152.8 42.5L150.4 57.6Q150.1 60.0 149.1 62.2L143.0 76.3Q142.0 78.5 139.3 77.7L122.0 72.7Q119.3 71.8 116.5 72.0L98.5 72.9Q95.7 73.0 95.9 70.9L97.7 57.5Q98.0 55.3 98.2 53.2L99.1 39.6Q99.2 37.5 102.5 37.0Z", tone: -0.035 },
+  { d: "M157.9 40.1L172.6 39.2Q174.9 39.0 177.1 39.7L191.2 43.8Q193.4 44.4 194.1 46.6L198.1 60.5Q198.7 62.7 200.1 64.5L209.1 75.8Q210.6 77.6 206.6 78.1L181.5 81.4Q177.5 81.9 173.6 81.5L148.4 79.1Q144.4 78.7 145.3 76.5L151.5 62.4Q152.4 60.2 152.8 57.8L155.2 42.7Q155.6 40.3 157.9 40.1Z", tone: 0.015 },
+  { d: "M198.8 44.1L218.8 41.9Q221.9 41.6 225.1 41.8L245.1 43.2Q248.3 43.5 248.4 45.2L249.3 56.3Q249.4 58.1 248.8 59.7L245.0 70.2Q244.4 71.9 242.6 72.6L231.0 77.0Q229.1 77.6 227.2 77.6L214.8 77.6Q212.8 77.6 211.4 75.8L202.4 64.5Q200.9 62.7 200.3 60.5L196.3 46.6Q195.7 44.4 198.8 44.1Z", tone: 0.05 },
+  { d: "M254.6 42.6L273.7 38.5Q276.7 37.9 279.8 37.7L299.2 36.5Q302.3 36.3 305.1 36.5L322.7 38.0Q325.5 38.2 328.2 37.4L345.3 32.7Q348.0 32.0 348.4 34.5L350.9 50.2Q351.4 52.6 352.0 55.1L355.8 70.5Q356.4 72.9 352.7 73.1L329.2 74.1Q325.5 74.3 321.8 74.5L298.3 75.7Q294.6 75.9 291.8 75.5L274.1 73.1Q271.3 72.7 268.5 72.6L250.6 71.8Q247.8 71.7 248.4 70.0L252.2 59.6Q252.8 57.9 252.6 56.1L251.8 45.0Q251.6 43.3 254.6 42.6Z", tone: 0.015 },
+  { d: "M354.2 32.6L372.2 36.6Q375.0 37.2 377.9 37.6L396.1 40.3Q399.0 40.7 398.6 42.6L396.2 55.0Q395.9 56.9 396.2 58.9L398.6 71.2Q399.0 73.1 396.6 73.3L381.8 74.1Q379.4 74.3 377.1 74.1L362.2 73.1Q359.9 72.9 359.3 70.5L355.4 55.1Q354.8 52.6 354.4 50.1L351.8 34.4Q351.4 32.0 354.2 32.6Z", tone: 0.035 },
+  { d: "M4.9 74.5L27.8 79.6Q31.4 80.4 34.9 81.5L57.2 88.7Q60.7 89.8 59.9 91.6L54.8 102.6Q54.0 104.3 53.3 106.1L48.7 117.3Q48.0 119.1 45.2 119.3L27.4 120.6Q24.6 120.8 21.8 120.6L4.0 119.3Q1.2 119.1 1.1 116.4L-0.1 99.1Q-0.3 96.4 -0.1 93.7L1.1 76.4Q1.2 73.7 4.9 74.5Z", tone: 0 },
+  { d: "M66.0 89.2L78.5 85.5Q80.5 84.9 82.2 83.7L92.9 76.2Q94.6 75.0 97.5 74.9L115.4 74.0Q118.3 73.8 121.0 74.6L138.2 79.7Q141.0 80.5 141.0 82.9L141.1 98.1Q141.1 100.5 141.9 102.7L147.3 116.9Q148.2 119.1 145.4 119.2L127.9 119.6Q125.1 119.7 122.3 119.6L104.7 119.2Q102.0 119.1 98.9 118.7L79.6 115.9Q76.6 115.4 73.6 115.9L54.3 118.7Q51.2 119.1 51.9 117.3L56.5 106.1Q57.2 104.3 58.0 102.6L63.2 91.6Q64.0 89.8 66.0 89.2Z", tone: -0.085 },
+  { d: "M149.6 80.8L174.8 83.2Q178.8 83.6 182.7 83.1L207.8 79.8Q211.8 79.3 213.8 79.3L226.2 79.4Q228.1 79.4 230.0 78.7L241.6 74.3Q243.4 73.6 244.6 76.3L251.8 93.1Q252.9 95.8 253.6 98.5L258.3 116.2Q259.0 119.0 255.9 118.9L236.0 118.0Q232.8 117.8 229.7 118.0L209.7 118.9Q206.6 119.0 203.4 118.5L182.9 115.0Q179.7 114.4 176.5 115.0L156.1 118.5Q152.8 119.0 152.0 116.8L146.6 102.6Q145.7 100.4 145.7 98.0L145.6 82.8Q145.6 80.5 149.6 80.8Z", tone: -0.06 },
+  { d: "M249.5 73.7L267.3 74.5Q270.2 74.6 273.0 74.9L290.7 77.4Q293.4 77.8 293.7 80.2L295.3 96.1Q295.5 98.5 296.1 101.0L299.4 116.5Q299.9 119.0 297.6 119.5L283.3 122.5Q281.1 123.0 278.8 122.5L264.5 119.5Q262.3 119.0 261.5 116.2L256.9 98.5Q256.2 95.7 255.0 93.1L247.8 76.3Q246.7 73.6 249.5 73.7Z", tone: -0.035 },
+  { d: "M299.5 77.6L323.1 76.4Q326.8 76.2 330.5 76.1L354.0 75.0Q357.7 74.9 357.6 77.5L357.0 94.4Q356.9 97.1 357.4 99.7L360.3 116.4Q360.8 119.0 357.3 119.8L335.0 124.6Q331.5 125.3 328.0 124.6L305.8 119.8Q302.3 119.0 301.7 116.6L298.4 101.0Q297.9 98.6 297.7 96.1L296.1 80.3Q295.8 77.8 299.5 77.6Z", tone: 0.05 },
+  { d: "M362.3 75.0L377.2 76.0Q379.5 76.1 381.9 76.0L396.7 75.2Q399.1 75.0 398.6 77.7L395.7 94.4Q395.3 97.0 395.7 99.6L398.6 116.3Q399.1 119.0 396.9 118.8L383.2 117.7Q381.1 117.6 378.9 117.7L365.2 118.8Q363.1 119.0 362.6 116.3L359.6 99.7Q359.2 97.0 359.3 94.4L359.9 77.5Q360.0 74.8 362.3 75.0Z", tone: 0.015 },
+];
+
+/** Rysy i cienie na kamieniach (układ 400×120). */
+const FIELDSTONE_CRACKS: { d: string; opacity: number }[] = [
+  { d: "M8.1 20.2Q3.2 29.2 5.3 36.7", opacity: 0.51 },
+  { d: "M59.8 18.9Q51.3 28.9 58.5 34.2", opacity: 0.38 },
+  { d: "M140.5 3.3Q136.4 -3.8 123.1 0.6", opacity: 0.34 },
+  { d: "M168.4 6.5Q154.6 4.2 149.3 3.9", opacity: 0.54 },
+  { d: "M288.5 18.2Q268.1 9.0 248.3 3.8", opacity: 0.55 },
+  { d: "M324.6 7.4Q312.5 14.6 303.3 17.8", opacity: 0.46 },
+  { d: "M358.0 3.4Q381.1 0.3 395.6 3.4", opacity: 0.47 },
+  { d: "M31.0 75.8Q9.8 69.8 3.8 57.3", opacity: 0.37 },
+  { d: "M5.3 70.1Q29.3 80.4 55.9 83.9", opacity: 0.54 },
+  { d: "M99.8 70.5Q106.0 71.9 119.9 69.5", opacity: 0.36 },
+  { d: "M139.1 75.2Q123.6 77.6 99.8 70.5", opacity: 0.52 },
+  { d: "M195.3 62.4Q185.3 69.7 177.3 78.7", opacity: 0.52 },
+  { d: "M244.8 45.9Q234.5 39.8 222.4 44.3", opacity: 0.36 },
+  { d: "M280.2 40.5Q309.4 33.2 340.8 35.5", opacity: 0.52 },
+  { d: "M280.2 40.5Q317.9 47.1 343.7 53.1", opacity: 0.39 },
+  { d: "M393.0 56.6Q385.1 49.0 375.3 39.9", opacity: 0.31 },
+  { d: "M362.4 70.2Q355.6 58.9 358.1 53.0", opacity: 0.52 },
+  { d: "M50.0 103.7Q31.2 97.3 3.9 97.0", opacity: 0.4 },
+  { d: "M55.8 91.4Q39.6 101.7 25.1 117.8", opacity: 0.32 },
+  { d: "M69.4 91.4Q72.2 87.6 83.4 87.2", opacity: 0.48 },
+  { d: "M141.0 116.3Q99.7 108.5 63.6 103.7", opacity: 0.49 },
+  { d: "M182.4 85.9Q196.9 100.3 206.1 116.0", opacity: 0.44 },
+  { d: "M154.3 100.1Q199.7 109.8 250.6 116.0", opacity: 0.49 },
+  { d: "M251.0 77.2Q273.4 83.4 292.6 98.4", opacity: 0.48 },
+  { d: "M306.2 116.0Q334.6 93.1 353.4 78.4", opacity: 0.41 },
+  { d: "M327.1 79.6Q346.7 100.2 356.0 116.0", opacity: 0.55 },
+  { d: "M365.5 115.7Q374.9 107.1 392.9 97.0", opacity: 0.52 },
+  { d: "M379.5 79.3Q389.7 85.1 392.9 97.0", opacity: 0.49 },
+];
+
+/** Kamień polny — mur z otoczaków, wszystkie odcienie pochodne od colorHex. */
+function drawFieldstone(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  colorHex: string,
+  seed: number,
+): string {
+  const id = `fstone${seed}_${Math.round(x * 10)}`;
+  const grout = darken(colorHex, 0.44);
+  const outline = darken(colorHex, 0.46);
+  const edgeLight = lighten(colorHex, 0.12);
+  const crackDark = darken(colorHex, 0.25);
+  const crackLight = lighten(colorHex, 0.3);
+  const shadeDark = darken(colorHex, 0.62);
+
+  // Kolor ziarna szumu jako ułamki RGB (0–1) pochodne od koloru bazowego.
+  const hx = colorHex.replace("#", "");
+  const grainR = ((parseInt(hx.slice(0, 2), 16) / 255) * 0.42).toFixed(3);
+  const grainG = ((parseInt(hx.slice(2, 4), 16) / 255) * 0.42).toFixed(3);
+  const grainB = ((parseInt(hx.slice(4, 6), 16) / 255) * 0.42).toFixed(3);
+
+  const sx = w / 400;
+  const sy = h / 120;
+
+  let out = `<defs>`;
+  out += `<radialGradient id="shade${id}" cx="0.4" cy="0.32" r="0.85">`;
+  out += `<stop offset="0" stop-color="#ffffff" stop-opacity="0.3"/>`;
+  out += `<stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>`;
+  out += `<stop offset="1" stop-color="${shadeDark}" stop-opacity="0.3"/>`;
+  out += `</radialGradient>`;
+  out += `<filter id="grain${id}" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">`;
+  out += `<feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" seed="${seed % 97}"/>`;
+  out += `<feColorMatrix type="matrix" values="0 0 0 0 ${grainR}  0 0 0 0 ${grainG}  0 0 0 0 ${grainB}  0 0 0 0.22 0"/>`;
+  out += `</filter>`;
+  out += `<clipPath id="clip${id}"><rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}"/></clipPath>`;
+  out += `</defs>`;
+
+  out += `<g clip-path="url(#clip${id})"><g transform="translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${sx.toFixed(4)} ${sy.toFixed(4)})">`;
+  out += `<rect width="400" height="120" fill="${grout}"/>`;
+  for (const stone of FIELDSTONE_STONES) {
+    const fill =
+      stone.tone === 0
+        ? colorHex
+        : stone.tone > 0
+          ? lighten(colorHex, stone.tone)
+          : darken(colorHex, -stone.tone);
+    out += `<path d="${stone.d}" fill="${fill}"/>`;
+    out += `<path d="${stone.d}" fill="url(#shade${id})"/>`;
+    out += `<path d="${stone.d}" fill="none" stroke="${outline}" stroke-width="1.6" opacity="0.45"/>`;
+    out += `<path d="${stone.d}" fill="none" stroke="${edgeLight}" stroke-width="0.9" opacity="0.6" transform="translate(-0.6 -1)"/>`;
+  }
+  for (const crack of FIELDSTONE_CRACKS) {
+    out += `<path d="${crack.d}" fill="none" stroke="${crackDark}" stroke-width="0.8" opacity="${crack.opacity}"/>`;
+    out += `<path d="${crack.d}" fill="none" stroke="${crackLight}" stroke-width="0.6" opacity="0.35" transform="translate(0 -1)"/>`;
+  }
+  out += `<rect width="400" height="120" filter="url(#grain${id})"/>`;
+  out += `</g></g>`;
+  out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="none" stroke="${darken(colorHex, 0.28)}" stroke-width="1" rx="1"/>`;
+  return out;
+}
+
 /** Rysuje panel wg nowego presetu; null = użyj klasycznego wyglądu. */
 function drawPresetPanel(
   patternKey: PanelPresetKey | undefined,
@@ -1197,6 +1319,8 @@ function drawPresetPanel(
       return drawSandstone(x, y, w, h, colorHex, seed);
     case "sandstone-arch":
       return drawSandstoneArch(x, y, w, h, colorHex, seed);
+    case "fieldstone":
+      return drawFieldstone(x, y, w, h, colorHex, seed);
     case "clapboard-wide":
       return drawClapboardWide(x, y, w, h, colorHex, seed);
     case "wave-dunes":
@@ -1216,6 +1340,25 @@ function drawPresetPanel(
   }
 }
 
+/**
+ * Filtr przebarwiający własny SVG na wybrany kolor: luminancja piksela
+ * jest mapowana na kolor docelowy, więc światłocień projektu zostaje,
+ * a barwa podąża za colorHex — tak jak w presetach proceduralnych.
+ * Referencja 0.83 = jasność bazowej płyty projektowanej "na szaro".
+ */
+export function svgTintFilter(colorHex: string, filterId: string): string {
+  const n = colorHex.replace("#", "");
+  const ref = 0.83;
+  const kr = parseInt(n.slice(0, 2), 16) / 255 / ref;
+  const kg = parseInt(n.slice(2, 4), 16) / 255 / ref;
+  const kb = parseInt(n.slice(4, 6), 16) / 255 / ref;
+  const lum = [0.2126, 0.7152, 0.0722];
+  const row = (k: number) => lum.map((l) => (l * k).toFixed(4)).join(" ");
+  return `<filter id="${filterId}" color-interpolation-filters="sRGB">
+    <feColorMatrix type="matrix" values="${row(kr)} 0 0  ${row(kg)} 0 0  ${row(kb)} 0 0  0 0 0 1 0"/>
+  </filter>`;
+}
+
 function drawCustomSvgPanel(
   px: number,
   y: number,
@@ -1226,8 +1369,13 @@ function drawCustomSvgPanel(
 ): string {
   const inner = wrapCustomSvgForPanel(svgMarkup, px, y, w, h);
   if (!inner) return "";
+  const tintId = `csvgTint${Math.round(px * 10)}_${Math.round(y * 10)}`;
   const frameStroke = darken(colorHex, 0.24);
-  return `${inner}<rect x="${px.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="none" stroke="${frameStroke}" stroke-width="1" rx="1"/>`;
+  return (
+    `<defs>${svgTintFilter(colorHex, tintId)}</defs>` +
+    `<g filter="url(#${tintId})">${inner}</g>` +
+    `<rect x="${px.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="none" stroke="${frameStroke}" stroke-width="1" rx="1"/>`
+  );
 }
 
 function drawConcretePanel(

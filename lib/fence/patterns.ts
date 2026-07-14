@@ -20,6 +20,7 @@ export const PANEL_PRESET_KEYS = [
   "brick-small",
   "sandstone",
   "sandstone-arch",
+  "fieldstone",
   "clapboard-wide",
   "wave-dunes",
   "concrete-smooth",
@@ -52,6 +53,7 @@ export const PANEL_PRESETS: {
   { key: "brick-small", label: "Cegiełka", role: "standard" },
   { key: "sandstone", label: "Piaskowiec", role: "standard" },
   { key: "sandstone-arch", label: "Piaskowiec łuk", role: "cap" },
+  { key: "fieldstone", label: "Kamień polny", role: "standard" },
   { key: "clapboard-wide", label: "Deska pozioma — szeroka", role: "standard" },
   { key: "wave-dunes", label: "Fala piaskowa 3D", role: "standard" },
   {

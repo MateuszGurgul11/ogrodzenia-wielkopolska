@@ -5,6 +5,7 @@ import {
   buildFenceSvg,
   getFenceContentBounds,
   getViewWidth,
+  svgTintFilter,
   VIEW_H,
 } from "@/lib/fence/renderFence";
 import { resolvePostHeightCm } from "@/lib/fence/resolveStack";
@@ -120,7 +121,16 @@ export function buildPanelBlockPreviewSvg(options: {
   seed?: number;
 }): string {
   if (options.svgMarkup?.trim()) {
-    return buildCustomSvgPreview(options.svgMarkup);
+    const svg = buildCustomSvgPreview(options.svgMarkup);
+    if (!options.colorHex) return svg;
+    // Przebarwienie podglądu tym samym filtrem co panel w scenie ogrodzenia.
+    const tint = svgTintFilter(options.colorHex, "csvgPreviewTint");
+    return svg
+      .replace(
+        /(<svg[^>]*>)/,
+        `$1<defs>${tint}</defs><g filter="url(#csvgPreviewTint)">`,
+      )
+      .replace(/<\/svg>\s*$/, "</g></svg>");
   }
 
   const patternKey = options.patternKey ?? "concrete-standard";
