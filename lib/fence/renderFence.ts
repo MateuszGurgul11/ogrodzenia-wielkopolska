@@ -1388,6 +1388,8 @@ function drawConcretePanel(
   seed: number,
   patternKey?: PanelPresetKey,
   svgMarkup?: string | null,
+  panelIndex?: number,
+  panelCount?: number,
 ): string {
   if (svgMarkup?.trim()) {
     return drawCustomSvgPanel(px, y, w, h, svgMarkup, colorHex);
@@ -1398,8 +1400,13 @@ function drawConcretePanel(
 
   const patId = `concretePat${seed}`;
   const frameInset = w * 0.065;
-  const fx = px + frameInset;
-  const fw = w - frameInset * 2;
+  const isFirst = panelIndex === 0;
+  const isLast =
+    panelIndex != null && panelCount != null && panelIndex === panelCount - 1;
+  const leftInset = isFirst ? 0 : frameInset;
+  const rightInset = isLast ? 0 : frameInset;
+  const fx = px + leftInset;
+  const fw = w - leftInset - rightInset;
   const arch = isArchPanel(patternKey, role);
   const frameStroke = darken(colorHex, 0.24);
   let out = "";
@@ -1438,6 +1445,8 @@ function drawStackSection(
   shadowEdge: string,
   shadowBottom: string,
   colorHex: string,
+  panelIndex?: number,
+  panelCount?: number,
 ): string {
   const totalCm = heightM * 100;
   let currentY = y;
@@ -1463,6 +1472,8 @@ function drawStackSection(
       unit.seed ?? 0,
       unit.patternKey,
       unit.svgMarkup,
+      panelIndex,
+      panelCount,
     );
     out += `<rect x="${(px + sectionW - 2).toFixed(1)}" y="${currentY.toFixed(1)}" width="2" height="${blockH.toFixed(1)}" fill="${shadowEdge}" opacity="0.35"/>`;
     if (blockH > 4) {
@@ -1488,6 +1499,8 @@ function drawSectionPanels(
   stackUnits?: StackDrawUnit[],
   heightM?: number,
   colorHex?: string,
+  panelIndex?: number,
+  panelCount?: number,
 ): string {
   if (stackUnits && stackUnits.length > 0 && heightM && colorHex) {
     return drawStackSection(
@@ -1500,6 +1513,8 @@ function drawSectionPanels(
       shadowEdge,
       shadowBottom,
       colorHex,
+      panelIndex,
+      panelCount,
     );
   }
   const { useStacked, plankCount, slitGap, plankH } = computePlankLayout(
@@ -1634,6 +1649,8 @@ function panelRects(
         stackUnits,
         heightM,
         colorHex,
+        i,
+        count,
       );
     }
   }
@@ -1673,8 +1690,8 @@ export function buildFenceSvg(params: FenceRenderParams): string {
     totalW,
   } = computeFenceGeometry(heightM, postWidthCm, panelCount, postHeightCm);
   const gap = hasSpacer ? 8 + openness * 12 : 2;
-  const panelsX = leftPost + postW + 4;
-  const panelsW = rightPost - panelsX - 4;
+  const panelsX = leftPost + postW;
+  const panelsW = rightPost - panelsX;
   const sectionPanelW = (panelsW - gap * (panelCount - 1)) / panelCount;
 
   const postLight = lighten(colorHex, 0.15);
